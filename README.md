@@ -74,3 +74,4 @@ Most configuration options are in `src/main/config`, and it is ready to read con
 The ecRadOff example in the Jupyter notebook saves input fields for ecRad in $TMPDIR by default, assuming that this is sufficiently fast and large (ideally RAM, but SSD is also great). Most of the time is indeed I/O from fields on disk, so having a fast (temporary) storage at disposal really speeds up every iteration.
 
 <img src="rgb_compo.png" alt="RGB from MODIS bands, METEOSAT-11 view" width="400" height="400">
+

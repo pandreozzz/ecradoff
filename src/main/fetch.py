@@ -169,8 +169,8 @@ def aerosol_clim(model_data : xr.Dataset,
     cams_dset.data = xr.Dataset(
         data_vars={
             "aerosol_mmr": xr.concat(
-                [cams_dset.data.data_vars[var].expand_dims(aero_type=[v])
-                 for v,var in enumerate(cams_dset.optics_var)], dim="aero_type"),
+                [cams_dset.data.data_vars[var].expand_dims(aero_type=[var])
+                 for var in cams_dset.optics_var], dim="aero_type"),
                  PRES_VAR: cams_dset.data[PRES_VAR]
                  },
         coords=cams_dset.data.coords,
@@ -179,7 +179,9 @@ def aerosol_clim(model_data : xr.Dataset,
     
     # 3D interpolation to model grid and vertical levels
     gp_clim = GriddedProfile(cams_dset.data, profile_coord=PRES_VAR, lev_dim=LEV_DIM)
+
     ptgt = model_data[model_pres_var]
+
     if USE_DASK:
         ptgt = ptgt.compute(scheduler="threads")
     else:
@@ -189,7 +191,8 @@ def aerosol_clim(model_data : xr.Dataset,
         ptgt=ptgt,
         tgt_coords=model_data.coords,
         lev_dim_tgt=LEV_DIM,
-        verbose=False
+        verbose=False,
+        out_chunks=None #type: ignore
     )
     
     return cams_dset
