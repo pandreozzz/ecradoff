@@ -22,11 +22,13 @@ NMLIST_DIR = os.path.join(ECRADOFF_DIR, "namelists")
 SHAREDLIBS_DIR = os.path.join(ECRADOFF_DIR, "locals/lib")
 INTERP2D_LIB = os.path.join(SHAREDLIBS_DIR, "interp2d.so")
 INTERPVERT_LIB = os.path.join(SHAREDLIBS_DIR, "interpvert.so")
+INTERPLUT_LIB = os.path.join(SHAREDLIBS_DIR, "interplut.so")
 
 # Data
 CAMS_CLIM_DIR = os.path.join(DATA_DIR, "cams_clim")
 ERA5_DATA_DIR = os.path.join(DATA_DIR, "era5")
 GHG_SERIES_DIR = os.path.join(DATA_DIR, "ghg")
+NDLUT_DIR = os.path.join(DATA_DIR, "ndlut")
 
 # ecRad
 ECRAD_DIR = os.path.join(ECRADOFF_DIR, "ecrad")
@@ -42,6 +44,9 @@ CONFIGDICT_DEF = {
     "aeosol_optics_version": "49r1",
     "tot_solar_irr_file": "total_solar_irradiance_CMIP6_49r1.nc",
     "nml_template": "config_flotsam_template.nam",
+    "ndlut_file": "pyrcel_lut_flat_clim_ad3_20260407.nc",
+    "ndlut_rec_file": "pyrcel_lut_flat_clim_ad3_recipe_20260407.nc",
+    "nd_from_aerosols" : True,
 }
 
 # ---------------------------------------------------------------------
@@ -72,6 +77,18 @@ GHG_VARS = ["co2_vmr", "ch4_vmr", "ch4_vmr", "n2o_vmr", "cfc11_vmr", "cfc12_vmr"
 # CONFIGURATION
 
 CONFIGDICT : Dict[str, Any] = {}
+
+def get_ndlut_path() -> str:
+    """Get the path to the NDLUT file based on the current configuration."""
+    if "ndlut_file" not in CONFIGDICT:
+        raise ValueError("ndlut_file not set in CONFIGDICT. Call digest_config first.")
+    return os.path.join(NDLUT_DIR, CONFIGDICT["ndlut_file"])
+
+def get_ndlut_rec_path() -> str:
+    """Get the path to the NDLUT recipe file based on the current configuration."""
+    if "ndlut_rec_file" not in CONFIGDICT:
+        raise ValueError("ndlut_rec_file not set in CONFIGDICT. Call digest_config first.")
+    return os.path.join(NDLUT_DIR, CONFIGDICT["ndlut_rec_file"])
 
 def get_nml_template_path() -> str:
     """Get the path to the namelist template file based on the current configuration."""

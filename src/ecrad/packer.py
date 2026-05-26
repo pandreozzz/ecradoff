@@ -15,6 +15,7 @@ def gen_ecrad_dset(model_fields : xr.Dataset, solar_irradiance : float,
                    cos_satza : Optional[xr.DataArray] = None,
                    sun_azimuth : Optional[xr.DataArray] = None,
                    sat_azimuth : Optional[xr.DataArray] = None,
+                   re_liquid_m : Optional[xr.DataArray] = None,
                    iseed : Optional[xr.DataArray] = None
                   ) -> xr.Dataset:
     import numpy as np
@@ -87,13 +88,18 @@ def gen_ecrad_dset(model_fields : xr.Dataset, solar_irradiance : float,
         # #re_liquid=xr.ones_like(p_full)
     # else:
     #     llut = False
-    re_liquid_m = ifst.compute_liquid_reff_ifs(
-        dset=model_fields,
-        ccn_fields=ifst.compute_ccn_ifs(
-            ws=np.sqrt(u10**2+v10**2), #type: ignore
-            lsm=lsm
-        ), min_reff = 5,
-    ).compute()*1.e-6
+    if re_liquid_m is None:
+        re_liquid_m = ifst.compute_liquid_reff(
+            dset=model_fields,
+            nd_fields=ifst.compute_ccn_ifs(
+                ws=np.sqrt(u10**2+v10**2), #type: ignore
+                lsm=lsm
+            ),
+            min_reff=4, max_reff=30,
+            min_nd=10, max_nd=3000,
+            spectr_disp_land=0.69,
+            spectr_disp_sea=0.77
+        ).compute()*1.e-6
 
     # Ice particle size
     re_ice_m = ifst.compute_ice_reff_ifs(

@@ -22,7 +22,7 @@ class ArrayGridDesc(GridDesc):
         super().__init__(gtyp, lons, lats, reduced_pts)
         self.datadims : List[str] = datadims
         self.coordims : List[str] = coordims
-    
+
     def is_equal_to(self, other : ArrayGridDesc,
                     atol : float = 1.e-4) -> bool:
         """Check if grid descriptors are equal"""
@@ -140,10 +140,10 @@ def get_arraygriddesc(grid_coords : XRCoords,
         lats = grid_coords["lat"].values
         lons = grid_coords["lon"].values
         reduced_pts = None
-        
+
         # if datadims is None, defaults.
         # if grid_coords is nonambiguous, datadims is needed,
-        # otherwise assume regular 
+        # otherwise assume regular
         if datadims is None:
             if coordims is not None:
                 datadims = coordims
@@ -174,7 +174,7 @@ def get_arraygriddesc(grid_coords : XRCoords,
             gtyp = GridType.UNSTRUC
         else:
             raise ValueError(f"Could not determine grid type from xarray dataset and provided dims {datadims}!")
-    
+
     return ArrayGridDesc(
         gtyp=gtyp,
         lons=lons, lats=lats,
@@ -193,7 +193,7 @@ class GriddedArray():
 
         self.array : xr.Dataset = array
         self.grid : ArrayGridDesc = get_arraygriddesc(array.coords, datadims=datadims)
-    
+
     @property
     def ordered_array(self) -> xr.Dataset:
         """Returns data view ensuring that dims are consistent with grid description"""
@@ -224,9 +224,9 @@ class GriddedArray():
         from ..tools.stack import tools_to_stack_2dgrids
         from .grids import GriddedData
 
-        tgt_grid_desc : ArrayGridDesc = get_arraygriddesc(tgt_grid, 
+        tgt_grid_desc : ArrayGridDesc = get_arraygriddesc(tgt_grid,
                                                           datadims=tgt_datadims)
-        
+
         if self.grid.is_equal_to(tgt_grid_desc):
             if verbose:
                 print("Source and target grids are the same, skipping interpolation.", flush=True)
@@ -237,7 +237,11 @@ class GriddedArray():
         for var in self.array.data_vars:
             if verbose:
                 print(f"Interpolating variable {var}...", flush=True)
-            if not np.all([dim in self.array[var].dims for dim in self.grid.datadims]):
+            # Be aware that if the interpolation coordinates are
+            # not in the coordinates vars, but appears in data_vars
+            # then this gets broken
+            if not np.all([dim in self.array[var].dims
+                           for dim in self.grid.datadims]):
                 # copy non-gridded variables
                 data_vars[var] = self.array[var]
                 continue
@@ -248,14 +252,16 @@ class GriddedArray():
                 tgtgrid=tgt_grid_desc,
                 lat_row=lat_row
                 )
-            
+            out_xrda_dim_order = [d for d in self.array.dims
+                                  if d in stacktools.out_dim_order]
+
             # Only keep keys that are in the output dimension order
             out_coords = {k:v for k,v in stacktools.out_coords.items() if k in stacktools.out_dim_order}
             # All the rest of the coordinates
             xtra_coords = {**xtra_coords,
                            **{k:v for k,v in stacktools.out_coords.items()
                               if (k not in xtra_coords) and (k not in out_coords)}}
-        
+
             data_vars[var] = xr.DataArray(
                 data=GriddedData(data=this_array.transpose(
                 *stacktools.src_dim_order
@@ -270,7 +276,7 @@ class GriddedArray():
                         }).data.reshape(stacktools.out_shape),
                 dims=stacktools.out_dim_order,
                 coords=out_coords
-            )
+            ).transpose(..., *out_xrda_dim_order)
 
         return GriddedArray(
             array=xr.Dataset(
@@ -280,7 +286,7 @@ class GriddedArray():
         )
 
 
-        
+
 class GriddedProfile():
     """Dataset and grids"""
     def __init__(self, profile : Union[xr.Dataset, GriddedArray],
@@ -295,7 +301,7 @@ class GriddedProfile():
             self.profile : GriddedArray = profile
         else:
             self.profile : GriddedArray = GriddedArray(profile)
-        
+
         if lev_dim is not None:
             if lev_dim not in self.profile.array.dims:
                 raise ValueError(f"Specified lev_dim {lev_dim} not found in xarray dataset dimensions!")
@@ -321,6 +327,7 @@ class GriddedProfile():
                     tgt_datadims : Optional[List[str]] = None,
                     lev_dim_tgt : Optional[str] = None,
                     verbose : bool = False,
+                    out_chunks : Optional[dict] = None,
                     **interp_kwargs) -> GriddedProfile:
         """Interpolate profile to target grid and to target pressure"""
 
@@ -352,14 +359,15 @@ class GriddedProfile():
             ptgt=ptgt,
             lev_dim_tgt=lev_dim_tgt,
             vert_kwargs=interp_kwargs,
-            interp_kwargs=interp_kwargs
+            interp_kwargs=interp_kwargs,
+            out_chunks=out_chunks,
         )
         return GriddedProfile(
             profile=profile_interp3d.profile,
             profile_coord=self.profile_coord,
             lev_dim=profile_interp3d.lev_dim
         )
-        
+
     def interp2d_to(self, tgt_grid : XRCoords,
                     tgt_datadims : Optional[List[str]] = None,
                     verbose : bool = False,
@@ -377,11 +385,12 @@ class GriddedProfile():
             profile_coord=self.profile_coord,
             lev_dim=self.lev_dim
         )
-        
+
     def interpvert_to(self, ptgt : xr.DataArray,
                       lev_dim_tgt : Optional[str] = None,
                       vert_kwargs : dict = {},
-                      interp_kwargs : dict = {}
+                      interp_kwargs : dict = {},
+                      out_chunks : Optional[dict] = None
                       ) -> GriddedProfile:
         """Interpolate to target pressure levels."""
         from .verticals import ProfileData, InterpWeights
@@ -408,10 +417,10 @@ class GriddedProfile():
                             [str(d) for d in ptgt.dims])
             else:
                 comm_lev_dim = self.lev_dim
-                
+
         if lev_dim_tgt not in ptgt.dims:
             raise ValueError(f"Specified lev_dim_tgt {lev_dim_tgt} not found in target xarray dataset dimensions!")
-        
+
         rename_dim_src = {self.lev_dim: comm_lev_dim} if comm_lev_dim != self.lev_dim else {}
         rename_dim_tgt = {lev_dim_tgt: comm_lev_dim} if comm_lev_dim != lev_dim_tgt else {}
 
@@ -423,6 +432,8 @@ class GriddedProfile():
             dst_arr=xa_ptgt,
             intp_dim_name=comm_lev_dim
         )
+        out_xrda_dim_order = [d for d in xa_ptgt.dims
+                              if d in tmp_stacktools.out_dim_order]
 
         pd_psrc = ProfileData(
             data = None,
@@ -479,7 +490,7 @@ class GriddedProfile():
             xtra_coords = {**xtra_coords,
                             **{k:v for k,v in tmp_stacktools.out_coords.items()
                                 if (k not in xtra_coords) and (k not in out_coords)}}
-        
+
             this_interp_weights = InterpWeights(
                 tgtidxs=xa_tgtidxs.transpose(*tmp_stacktools.dst_dim_order).values.reshape(tmp_stacktools.dst_stackshape),
                 weights=xa_weights.transpose(*tmp_stacktools.dst_dim_order).values.reshape(tmp_stacktools.dst_stackshape)
@@ -495,9 +506,11 @@ class GriddedProfile():
                 data=pd_fld_out.reshape(tmp_stacktools.out_shape),
                 dims=tmp_stacktools.out_dim_order,
                 coords=out_coords
-            )
+            ).transpose(..., *out_xrda_dim_order)
+            if out_chunks is not None:
+                data_vars[var] = data_vars[var].chunk(out_chunks)
             del tmp_stacktools, this_interp_weights, pd_fld_out
-        
+
         xds_out = xr.Dataset(
             data_vars=data_vars
             ).assign_coords(**xtra_coords)
@@ -512,5 +525,3 @@ class GriddedProfile():
             lev_dim=lev_dim_tgt
         )
 
-
-        
