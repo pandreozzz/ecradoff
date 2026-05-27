@@ -1,6 +1,6 @@
 [submodule "ecrad"]
 	path = ecrad
-	url = https://github.com/ecmwf-ifs/ecrad
+	url = git@github.com:pandreozzz/ecrad.git
 	branch = flotsam
 [submodule "flotsam"]
 	path = flotsam
