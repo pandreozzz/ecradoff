@@ -2,9 +2,3 @@
 	path = ecrad
 	url = https://github.com/ecmwf-ifs/ecrad
 	branch = flotsam
-[submodule "flotsam"]
-	path = flotsam
-	url = git@github.com:rjhogan/flotsam.git
-[submodule "Adept-2"]
-	path = Adept-2
-	url = git@github.com:rjhogan/Adept-2.git

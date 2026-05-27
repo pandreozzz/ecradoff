@@ -2,7 +2,7 @@
 Global variables:
 ECRADOFF_DP: whether to use double precision for ecradoff. Default is single - no real reason to go for double
 PROFILE: which profile to use (takes Makefile.PROFILE from ecrad/)
-SKIP_ECRAD_BUILD: if set to 1, skip building ecrad 
+SKIP_ECRAD_BUILD: if set to 1, skip building ecrad
 SKIP_LIBS_BUILD: if set to 1, skip building libs for ECRADOFF
 ECRAD_SP: precision for ecrad. default is double. With ecrad flotsam sp build fails because the gauss quadrature (cgqf) code has real(kind=8) hardcoded
 """
@@ -17,7 +17,8 @@ import sys
 from typing import Optional, List, Union
 
 # Global switches
-USE_FLOTSAM = True
+# do not touch!
+USE_FLOTSAM = False
 
 # All absolute paths
 
@@ -59,7 +60,7 @@ class HelperExt(build_ext):
         PROFILE: which profile to use (takes Makefile.PROFILE from ecrad/)
         ECRAD_SP: precision for ecrad. default is double. With ecrad flotsam sp build fails because the gauss quadrature (cgqf) code has real(kind=8) hardcoded
         ECRADOFF_DP: whether to use double precision for ecradoff. Default is single - no real reason to go for double
-        SKIP_ECRAD_BUILD: if set to 1, skip building ecrad 
+        SKIP_ECRAD_BUILD: if set to 1, skip building ecrad
         SKIP_ECRADOFF_LIBS_BUILD: if set to 1, skip building ecradoff shared libs (in libs/src)
         FLOTSAM_DEBUG: if set to 1, build flotsam with debug symbols and no optimisation. Default is 0 (no debug, but also no optimisation).
         FLOTSAM_THREAD_SAFE: if set to 1, build flotsam with storage thread-safe flags. Default is 1 (thread safe).
@@ -67,7 +68,7 @@ class HelperExt(build_ext):
         FLOTSAM_NAN_INIT: if set to 1, build flotsam with NaN initialization. Default is 0 (no NaN initialization).
         FC: Fortran compiler to use for building ecradoff libs. If not set, uses the default compiler in the Makefiles.
         BLAS_LIB or OPENBLAS_LIB: BLAS/LAPACK library to use for building Adept2 and Flotsam (e.g. "openblas", "mkl", "atlas"). Required for FLOTSAM builds.
-        
+
         """
         print(help_message)
 
@@ -99,9 +100,9 @@ class BuildExt(build_ext):
             f.write(stdout)
         with open(err_file, "w") as f:
             f.write(stderr)
-        
+
         print(f"stdout and stderr put into {out_file} and {err_file}.")
-    
+
     def _easy_logged_run(self, log_dir : str, cmd : Union[str, List[str]],
                          label : str, message : str, shell : bool = False):
         """Just wrap cmd run and logging"""
@@ -131,7 +132,7 @@ class BuildExt(build_ext):
         profile = os.environ.get('PROFILE', "")
         # Default SP
         ecradoff_dp = os.environ.get('ECRADOFF_DP', '0')
-        # Default DP 
+        # Default DP
         l_ecrad_sp = os.environ.get('ECRAD_SP','0') == '1'
 
         # Flotsam debug, minimal checks and nan init
@@ -161,17 +162,17 @@ class BuildExt(build_ext):
 
         # Do we build ecrad (and dependencies)
         if not skip_ecrad_build:
-            
+
             # -------------------
             # Required system dependencies (depend on the actual version of ecrad)
             # -------------------
-            
+
             # NetCDF4 with Fortran support required
             cmd_nc4 = ['nc-config', '--has-nc4']
             result_nc4 = subprocess.run(cmd_nc4, capture_output=True, text=True)
             if result_nc4.returncode != 0 or "yes" not in result_nc4.stdout.lower():
                 raise RuntimeError("netCDF4 Fortran support is required to build ecrad. Please install netCDF4 with Fortran support and ensure nc-config is in your PATH.")
-            
+
             if USE_FLOTSAM:
                 print("This is a FLOTSAM installation")
                 # Did we find a BLAS/LAPACK library?
@@ -183,7 +184,7 @@ class BuildExt(build_ext):
                 result_gcc_test = subprocess.run(cmd_gcc_test, capture_output=True, text=True)
                 if result_gcc_test.returncode != 0:
                     raise RuntimeError(f"GCC is required to build flotsam. {result_gcc_test.stderr}")
-                
+
                 adept2_cpp_flags = self._get_adept2_cppflags(thread_safe=flotsam_thread_safe,
                                                              minimal_checks=flotsam_minimal_checks,
                                                              nan_init=flotsam_nan_init)
@@ -209,7 +210,7 @@ class BuildExt(build_ext):
                               flotsam_dir=flotsam_dir)
 
         if not skip_ecradoff_libs_build:
-            self._build_ecradoff_libs(ROOT_DIR, fc=fc, 
+            self._build_ecradoff_libs(ROOT_DIR, fc=fc,
                              profile=profile,
                              ecradoff_dp=ecradoff_dp)
 
@@ -233,7 +234,7 @@ class BuildExt(build_ext):
     def _get_adept2_cppflags(thread_safe : bool,
                              minimal_checks : bool,
                              nan_init : bool) -> str:
-        
+
         cppflags = ""
 
         if thread_safe:
@@ -245,13 +246,13 @@ class BuildExt(build_ext):
         else:
             print("Building flotsam with full checks")
             cppflags += " -DADEPT_BOUNDS_CHECKING"
-        
+
         if nan_init:
             print("Building flotsam with NaN initialization")
             cppflags += " -DADEPT_INIT_REAL_SNAN"
 
         return cppflags
-        
+
     def _build_adept2(self, adept2_path,
                       blas_lapack_lib : Optional[str] = None,
                       adept_cpp_flags : str = "",
@@ -261,13 +262,13 @@ class BuildExt(build_ext):
         """Build adept2 library using its Makefile. BLAS/LAPACK can be specified via blas_lapack argument (e.g. "openblas", "mkl", "atlas")"""
 
 
-        if not os.path.exists(os.path.join(adept2_path, "Makefile")): 
+        if not os.path.exists(os.path.join(adept2_path, "Makefile")):
             # First autoreconf
             cmd_ar = ["autoreconf",'-i', '-f', adept2_path]
             self._easy_logged_run(adept2_path, cmd_ar,
                                 label="autoreconf", message="Adept2 autoreconf")
 
-            
+
             # Configure
             cmd_cf = f"cd {os.path.join(adept2_path)} && ./configure"
             if debug:
@@ -275,7 +276,7 @@ class BuildExt(build_ext):
             else:
                 cxxflags = "-O0"
             cxxflags = cxxflags + "-Wall -march=native"
-    
+
             cmd_cf = cmd_cf + f" CXXFLAGS='{cxxflags}'"
 
             if adept_cpp_flags != "":
@@ -286,7 +287,7 @@ class BuildExt(build_ext):
                 cmd_cf =  cmd_cf + f" --with-blas='{blas_lapack_lib}'"
 
             cmd_cf = cmd_cf + " && cd -"
-    
+
             self._easy_logged_run(adept2_path, cmd_cf, shell=True, label="configure", message="Adept2 configure")
         else:
             print("[Info] Adept2 Makefile already exists, skipping autoreconf and configure.")
@@ -298,12 +299,12 @@ class BuildExt(build_ext):
         else:
             cmd.append("-j")
         self._easy_logged_run(adept2_path, cmd, label="build", message="Adept2 build")
-        
+
         # Check
         if not skip_checks:
             cmd = ['make', '-C', adept2_path, 'check']
             self._easy_logged_run(adept2_path, cmd, label="check", message="Adept2 check")
-        
+
         # Install
         cmd_install = ['make', '-C', adept2_path, 'install']
         self._easy_logged_run(adept2_path, cmd_install, label="install", message="Adept2 install")
@@ -379,10 +380,10 @@ class BuildExt(build_ext):
                      flotsam_dir : Optional[str] = None):
         """Build ecrad using specified compiler configuration"""
 
-        
+
         cmd = ['make', '-C', ecrad_path]
 
-        # ecrad does not check the value, but just if set 
+        # ecrad does not check the value, but just if set
         if sp_switch:
             cmd.append(f"SINGLE_PRECISION=1")
 
