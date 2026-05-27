@@ -14,6 +14,12 @@ to use the ecRad FLOTSAM version, checkout the flotsam branch
 git checkout flotsam
 ```
 
+It might be convenient to automatically recurse submodules, so that they are updated when checking out branches:
+```
+git config submodule.recurse true
+```
+Also, remember to clean and re-build dependencies when switching branches.
+
 ## Installation
 This is still a work in progress, but with some effort should go through in most linux environments.
 
