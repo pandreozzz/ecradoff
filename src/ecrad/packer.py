@@ -36,6 +36,8 @@ def gen_ecrad_dset(model_fields : xr.Dataset, solar_irradiance : float,
 
     p_half = model_fields["p_half"]
     t_half = getattr(model_fields, "t_half", None)
+    if t_half is not None:
+        t_half = t_half
 
     # Surface
     skt = model_fields["skt"]
@@ -94,7 +96,9 @@ def gen_ecrad_dset(model_fields : xr.Dataset, solar_irradiance : float,
             nd_fields=ifst.compute_ccn_ifs(
                 ws=np.sqrt(u10**2+v10**2), #type: ignore
                 lsm=lsm
-            ),
+            ).compute(),
+            wood_correction=True,
+            use_rwc=True,
             min_reff=4, max_reff=30,
             min_nd=10, max_nd=3000,
             spectr_disp_land=0.69,
