@@ -402,12 +402,7 @@ class BuildExt(build_ext):
 
         print(f"Building ecrad:\n\t{' '.join(cmd)}\n")
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        self._write_cmd_logs(ecrad_path, result.stdout, result.stderr)
-
-        if result.returncode != 0:
-            raise RuntimeError(f"ECRad build failed with return code {result.returncode}")
-
+        self._easy_logged_run(ecrad_path, cmd, label="build", message="ecRad build")
 
 setup(
     name='ecradoff',
