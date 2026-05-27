@@ -133,7 +133,7 @@ def compute_ndlut(model_fields : xr.Dataset,
 
     # Compute here
     rho_air, lwc, blh, repr_cb_lev,\
-        blh_lev, repr_aero_lev = dask.compute(rho_air, lwc, blh, repr_cb_lev,
+        blh_lev, repr_aero_lev = dask.compute(rho_air, lwc, blh, repr_cb_lev, # type: ignore
                                               blh_lev, repr_aero_lev)
 
     # We extract aerosols at one level relative to the cloud profile
@@ -176,7 +176,7 @@ def compute_ndlut(model_fields : xr.Dataset,
         raise NotImplementedError("3D ND not implemented yet")
         # w_std = w_std.broadcast_like(model_fields["w"])
 
-    w_mean, w_std = dask.compute(w_mean, w_std)
+    w_mean, w_std = dask.compute(w_mean, w_std) # type: ignore
 
     from .ndlut import NdLUT, LUTAerosol
     ThisLUTAero = LUTAerosol(
@@ -347,10 +347,10 @@ def compute_ccn_ifs(ws :xr.DataArray, lsm : xr.DataArray):
     return nd
 
 def compute_liquid_reff(dset, nd_fields, wood_correction : bool = True,
-                            use_rwc : bool = False,
-                            min_reff : float = 4., max_reff : float = 30., cle_reff : float = 2.,
-                            min_nd: float = 1., max_nd: float = 3000.,
-                            spectr_disp_land : float = 0.69, spectr_disp_sea : float = 0.77):
+                        use_rwc : bool = False,
+                        min_reff : float = 4., max_reff : float = 30., cle_reff : float = 2.,
+                        min_nd: float = 1., max_nd: float = 3000.,
+                        spectr_disp_land : float = 0.69, spectr_disp_sea : float = 0.77):
     """
     Reproduced computation of the liquid effective radius as in IFS (RADLP = 2)
     dset xarray.Dataset : must contain the following fields:
@@ -418,9 +418,19 @@ def compute_liquid_reff(dset, nd_fields, wood_correction : bool = True,
     if wood_correction:
         # Wood's (2000, eq. 19) adjustment to Martin et al's
         # parametrization (ZWOOD_FACTOR)
-        rain_ratio  = np.clip(rwc_gm3/lwc_gm3, eps_lwc, None)
-        wood_factor = 1 + (lwc_gm3 > repscw) * ((1 + ratio)**(0.666)/\
-                                (1+0.2*ratio*rain_ratio) - 1)
+
+        valid_lwc = np.isfinite(lwc_gm3) & (lwc_gm3 > repscw)
+
+        rain_ratio = np.full_like(lwc_gm3, eps_lwc, dtype=float)
+        np.divide(rwc_gm3, lwc_gm3, out=rain_ratio, where=valid_lwc)
+        rain_ratio = np.clip(rain_ratio, eps_lwc, None)
+
+        corr = ((1 + ratio)**(2/3) / (1 + 0.2 * ratio * rain_ratio) - 1)
+        wood_factor = np.where(valid_lwc, 1 + corr, 1.0)
+
+        # rain_ratio  = np.clip(rwc_gm3/lwc_gm3, eps_lwc, None)
+        # wood_factor = 1 + (lwc_gm3 > repscw) * ((1 + ratio)**(0.666)/\
+        #                         (1+0.2*ratio*rain_ratio) - 1)
     else:
         wood_factor = 1.
 
@@ -438,7 +448,6 @@ def compute_liquid_reff(dset, nd_fields, wood_correction : bool = True,
     reff = cle_reff + mask * (reff - cle_reff)
     reff_out = nd_fields.broadcast_like(ref_da).transpose(*target_dims).copy(data=reff).rename("re_liquid")
 
-    # fill non-cloud areas with clear values and return fields in micrometers
     return reff_out
 
 def compute_sp_from_lnsp(lsnp : xr.DataArray) -> xr.DataArray:
