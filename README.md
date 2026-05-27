@@ -10,6 +10,12 @@ ecRad is a git submodule. For the Flotsam version, also Adept-2 and FLOTSAM are 
 git clone --recurse-submodules <repository_url>
 ```
 
+It might be convenient to automatically recurse submodules, so that they are updated when checking out branches:
+```
+git config submodule.recurse true
+```
+Also, remember to clean and re-build dependencies when switching branches.
+
 ## Installation
 This is still a work in progress, but with some effort should go through in most linux environments.
 
