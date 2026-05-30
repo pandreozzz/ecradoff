@@ -1,5 +1,5 @@
 # ecRadOff
-Framework for offline ecRad computations using the flotsam capabilities of ecRad for simulating spectral reflectances and radiances.
+Framework for offline ecRad computations, supporting usage of the ecRad FLOTSAM version for simulating satellite spectral reflectances and radiances.
 
 ## Introduction
 This is a wrapper utility to perform ecRad computations on ERA5-like fields.
@@ -8,6 +8,10 @@ This is a wrapper utility to perform ecRad computations on ERA5-like fields.
 ecRad is a git submodule. For the Flotsam version, also Adept-2 and FLOTSAM are submodules, and all needed dependencies are built inside the repository. So you need to clone also the content of the submodules:
 ```
 git clone --recurse-submodules <repository_url>
+```
+to use the ecRad FLOTSAM version, checkout the flotsam branch
+```
+git checkout flotsam
 ```
 
 ## Installation
