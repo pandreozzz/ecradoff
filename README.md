@@ -27,8 +27,8 @@ $ source .venv/bin/activate
 ### Required system dependencies
 - Fortran compiler, netCDF4, openMP
 - *ONLY IF FLOTSAM IS USED*:
-- - GNU compiler (gcc/g++ at the moment hardcoded for Flotsam)
-- - BLAS/LAPACK libraries, you may need to set by hand the BLAS_LIB environment when invoking the build script
+  - GNU compiler (gcc/g++ at the moment hardcoded for Flotsam)
+  - BLAS/LAPACK libraries, you may need to set by hand the BLAS_LIB environment when invoking the build script
 
 ### Building libraries and ecRad
 There is a python `setup.py` script to build all sources (ecRad and its dependencies, the native ecRadOff Fortran libraries). Python requirements are in `requirements.txt`. Ideally, everything should be handled automagically with:
