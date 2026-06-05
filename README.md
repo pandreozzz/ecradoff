@@ -10,6 +10,12 @@ ecRad is a git submodule. For the Flotsam version, also Adept-2 and FLOTSAM are 
 git clone --recurse-submodules <repository_url>
 ```
 
+It might be convenient to automatically recurse submodules, so that they are updated when checking out branches:
+```
+git config submodule.recurse true
+```
+Also, remember to clean and re-build dependencies when switching branches.
+
 ## Installation
 This is still a work in progress, but with some effort should go through in most linux environments.
 
@@ -74,3 +80,4 @@ Most configuration options are in `src/main/config`, and it is ready to read con
 The ecRadOff example in the Jupyter notebook saves input fields for ecRad in $TMPDIR by default, assuming that this is sufficiently fast and large (ideally RAM, but SSD is also great). Most of the time is indeed I/O from fields on disk, so having a fast (temporary) storage at disposal really speeds up every iteration.
 
 <img src="rgb_compo.png" alt="RGB from MODIS bands, METEOSAT-11 view" width="400" height="400">
+

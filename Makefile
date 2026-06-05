@@ -15,7 +15,7 @@ endif
 # LIBS
 include	ecrad/Makefile_include.$(PROFILE)
 
-SOURCES = interp2d.f90 interp2d_old.f90 interpvert.f90 getlutval.f90
+SOURCES = interp2d.f90 interpvert.f90 interplut.f90
 
 INCLUDE_DIR = locals/lib/ #libs/shared
 

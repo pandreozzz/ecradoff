@@ -1,7 +1,7 @@
 MODULE mo_lut_tools
   implicit none
   private
-  public :: get_bin_nearest, get_bin_bounds, get_flat_index, get_flexi_lutvals
+  public :: get_flexi_lutvals
 
 
 contains
@@ -138,7 +138,8 @@ contains
     thread_id = int(omp_get_thread_num(), intk)
     !write(*,*) "Using ",num_threads," threads."
 
-    !$OMP DO SCHEDULE(DYNAMIC, chunk_size)
+    ! Used to !$OMP DO SCHEDULE(DYNAMIC, chunk_size)
+    !$OMP DO SCHEDULE(STATIC, chunk_size)
     do idx_val=1,nvals
       ! tgtbins(spec1, spec2, spec3, ..., specm)
       if (ieee_is_nan(aero_species(1, idx_val))) then
@@ -147,7 +148,7 @@ contains
       endif
 
       ! nearest neighbor for species
-      call get_bin_nearest(aero_species(:, idx_val), lut_spec_bins, &
+      call get_bin_nearest_binary(aero_species(:, idx_val), lut_spec_bins, &
                           & nspecbins, max_lut_bins, nspec, &
                           & tgtbins)
 
@@ -267,7 +268,7 @@ contains
     integer(intk), dimension(nvals) :: nearest_bins
     integer(intk) :: s
 
-    call get_bin_nearest(values, bins, nbins, max_lut_bins, nvals, nearest_bins)
+    call get_bin_nearest_binary(values, bins, nbins, max_lut_bins, nvals, nearest_bins)
     do s=1,nvals
       if (ieee_is_nan(values(s))) then
          tgtbounds(:,s) = -1
@@ -293,7 +294,48 @@ contains
 
   END SUBROUTINE get_bin_bounds
 
-  SUBROUTINE get_bin_nearest(values, bins, nbins, max_lut_bins, nvals, tgtbins)
+    SUBROUTINE get_bin_nearest_geometric(values, bins, nbins, max_lut_bins, nvals, tgtbins)
+    use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
+    use, intrinsic :: iso_fortran_env, realk => real32, intk => int32
+
+    integer(intk), intent(in), value  :: max_lut_bins, nvals
+
+    real(realk), intent(in), dimension(nvals) :: values
+    integer(intk), intent(in), dimension(nvals) :: nbins
+    real(realk), intent(in), dimension(max_lut_bins, nvals) :: bins
+
+    integer(intk), intent(out), dimension(nvals) :: tgtbins
+
+    real(realk) :: logr, n_frac
+    integer(intk) :: s
+
+
+    do s=1,nvals
+      ! no overhead compared to intrinsic
+      if (ieee_is_nan(values(s))) then
+         tgtbins(:) = -1
+         exit
+      endif
+
+      associate(this_value => values(s), this_bins => bins(:,s), &
+              & this_nbins => nbins(s), this_tgtbin => tgtbins(s))
+        logr = log(this_bins(this_nbins)/this_bins(1))/(this_nbins-1)
+        n_frac = log(this_value/this_bins(1))/logr + 1
+
+        if (n_frac < 1) then
+          this_tgtbin = 1
+        else if (n_frac > this_nbins) then
+          this_tgtbin = this_nbins
+        else
+          this_tgtbin = nint(n_frac)
+        endif
+
+      end associate
+    end do
+
+  END SUBROUTINE get_bin_nearest_geometric
+
+  SUBROUTINE get_bin_nearest_binary(values, bins, nbins, max_lut_bins, nvals, tgtbins)
     use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
     use, intrinsic :: iso_fortran_env, realk => real32, intk => int32
 
@@ -358,12 +400,12 @@ contains
       end associate
     end do
 
-  END SUBROUTINE get_bin_nearest
+  END SUBROUTINE get_bin_nearest_binary
 
   SUBROUTINE f_get_flexi_lutvals(lut_maps, nmaps, map_size, nwspeed, nspec, nvals, max_lut_bins, &
                                & aero_species, lut_spec_bins, nspecbins, val_out, &
                                & wspeeds, lut_wspeed_bins, nwspeedbins, chunk_size_in, c_order_in) &
-                               & bind(C,  name="get_flexi_lutvals")
+                               & bind(C,  name="getvals")
     use iso_c_binding, realk => c_float, intk => c_int32_t
     use, intrinsic :: iso_fortran_env, db => real64
 
@@ -388,18 +430,24 @@ contains
     logical :: c_order
     c_order = c_order_in
 
-    call get_flexi_lutvals(lut_maps, nmaps, map_size, nwspeed, nspec, nvals, max_lut_bins, &
-                         & aero_species, lut_spec_bins, nspecbins, val_out, &
-                         & wspeeds=wspeeds, lut_wspeed_bins=lut_wspeed_bins, &
-                         & nwspeedbins=nwspeedbins, chunk_size_in=chunk_size_in, &
-                         & c_order_in=c_order)
+    if (nwspeed > 0) then
+      call get_flexi_lutvals(lut_maps, nmaps, map_size, nwspeed, nspec, nvals, max_lut_bins, &
+                          & aero_species, lut_spec_bins, nspecbins, val_out, &
+                          & wspeeds=wspeeds, lut_wspeed_bins=lut_wspeed_bins, &
+                          & nwspeedbins=nwspeedbins, chunk_size_in=chunk_size_in, &
+                          & c_order_in=c_order)
+    else
+      call get_flexi_lutvals(lut_maps, nmaps, map_size, nwspeed, nspec, nvals, max_lut_bins, &
+                          & aero_species, lut_spec_bins, nspecbins, val_out, &
+                          & chunk_size_in=chunk_size_in, c_order_in=c_order)
+    endif
 
   END SUBROUTINE f_get_flexi_lutvals
 
   SUBROUTINE f_get_flexi_lutvals_nowspeed(lut_maps, nmaps, map_size, nwspeed, nspec, nvals, max_lut_bins, &
                                & aero_species, lut_spec_bins, nspecbins, val_out, &
                                & chunk_size_in, c_order_in) &
-                               & bind(C,  name="get_flexi_lutvals_nowspeed")
+                               & bind(C,  name="getvals_nowsp")
     use iso_c_binding, realk => c_float, intk => c_int32_t
     use, intrinsic :: iso_fortran_env, db => real64
 
