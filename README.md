@@ -9,6 +9,10 @@ ecRad is a git submodule. For the Flotsam version, also Adept-2 and FLOTSAM are 
 ```
 git clone --recurse-submodules <repository_url>
 ```
+You can keep separate local clones for the flotsam or the main branch with something like
+```
+git clone <repository_url> -b flotsam --recurse-submodules ecradoff_flotsam
+```
 
 It might be convenient to automatically recurse submodules, so that they are updated when checking out branches:
 ```
