@@ -43,7 +43,7 @@ CONFIGDICT_DEF = {
     "cams_clim_file": "aerosol_cams_climatology_49r2_1951-2019_4D.nc",
     "aeosol_optics_version": "49r1",
     "tot_solar_irr_file": "total_solar_irradiance_CMIP6_49r1.nc",
-    "nml_template": "config_flotsam_template.nam",
+    "nml_template": "configCY49R1.nam",
     "ndlut_file": "pyrcel_lut_flat_clim_ad3_20260407.nc",
     "ndlut_rec_file": "pyrcel_lut_flat_clim_ad3_recipe_20260407.nc",
     "nd_from_aerosols" : True,
