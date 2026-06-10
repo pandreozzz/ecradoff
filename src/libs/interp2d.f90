@@ -666,8 +666,10 @@ contains
     else if (lat22-lat12>atol) then
       wb = (tgtlat-lat12)/(lat22-lat12)
     else
-      wb = 0.
+      wb = 0._realk
     endif
+    wb = max(0._realk, min(1._realk, wb))
+
     fxblat(:) = wb*fsrc22(:) + (1-wb)*fsrc12(:)
 
     ! Find lona and interpolate left side
@@ -692,12 +694,14 @@ contains
     else if (lat21-lat11>atol) then
       wa = (tgtlat-lat11)/(lat21-lat11)
     else
-      wa = 0.
+      wa = 0._realk
     endif
+    wa = max(0._realk, min(1._realk, wa))
     fxalat(:) = wa*fsrc21(:) + (1-wa)*fsrc11(:)
     
     if (get_dist(lonb,lona)>atol) then
       w = get_dist(tgtlon,lonb)/get_dist(lonb,lona)
+      w = max(0._realk, min(1._realk, w))
       fdst(:) = w*fxalat(:) + (1-w)*fxblat(:)
     else
       fdst(:) = fxalat(:)
