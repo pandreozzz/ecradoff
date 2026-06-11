@@ -374,8 +374,8 @@ class BuildExt(build_ext):
             cmd.append("-j")
         self._easy_logged_run(flotsam_path, cmd, label="build", message="Flotsam build")
 
-        cmd_cf = ['make', '-C', flotsam_path, 'install']
-        self._easy_logged_run(flotsam_path, cmd, label="install", message="Flotsam install")
+        cmd_install = ['make', '-C', flotsam_path, 'install']
+        self._easy_logged_run(flotsam_path, cmd_install, label="install", message="Flotsam install")
 
     def _build_ecrad(self, ecrad_path, profile : str = "",
                      sp_switch : bool = False,
