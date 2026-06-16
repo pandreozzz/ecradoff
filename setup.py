@@ -26,7 +26,12 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 LOCALS_DIR = os.path.join(
     ROOT_DIR,
     "locals"
-    )
+)
+
+LOGS_DIR = os.path.join(
+    ROOT_DIR,
+    "logs"
+)
 
 ADEPT2_SRC_DIR = os.path.join(
     ROOT_DIR,
@@ -39,11 +44,6 @@ FLOTSAM_SRC_DIR = os.path.join(
 ECRAD_SRC_DIR = os.path.join(
     ROOT_DIR,
     "ecrad"
-)
-
-ECRADOFF_SRC_DIR = os.path.join(
-    ROOT_DIR,
-    "src/libs"
 )
 
 def prGreen(s): print("\033[92m {}\033[00m".format(s))
@@ -73,7 +73,7 @@ class HelperExt(build_ext):
 
 def clean_all_src_dirs():
     """Call make clean everywgere"""
-    for src_dir in [ECRAD_SRC_DIR, FLOTSAM_SRC_DIR, ADEPT2_SRC_DIR, ECRADOFF_SRC_DIR]:
+    for src_dir in [ECRAD_SRC_DIR, FLOTSAM_SRC_DIR, ADEPT2_SRC_DIR, ROOT_DIR]:
         for cleanop in ['clean', 'distclean']:
             if os.path.exists(src_dir):
                 res_clean = subprocess.run(['make', '-C', src_dir, cleanop], capture_output=True, text=True)
@@ -102,7 +102,7 @@ class BuildExt(build_ext):
 
         print(f"stdout and stderr put into {out_file} and {err_file}.")
 
-    def _easy_logged_run(self, log_dir : str, cmd : Union[str, List[str]],
+    def _easy_logged_run(self, cmd : Union[str, List[str]], log_dir : str,
                          label : str, message : str, shell : bool = False):
         """Just wrap cmd run and logging"""
         if type(cmd) == str:
@@ -218,16 +218,17 @@ class BuildExt(build_ext):
                              ecradoff_dp : str = "0"):
         """Build libs/src Fortran sources into shared libraries using the project Makefile"""
 
-        cmd = ['make', '-C', root]
-        cmd.append(f"ECRADOFF_DP={ecradoff_dp}")
+        cmd_bld = ['make', '-C', root]
+        cmd_bld.append(f"ECRADOFF_DP={ecradoff_dp}")
         # if fcflags != "":
         #     cmd.append(f"FCFLAGS={fcflags}")
         if profile != "":
-            cmd.append(f"PROFILE={profile}")
+            cmd_bld.append(f"PROFILE={profile}")
         elif fc != "":
-            cmd.append(f"FC={fc}")
+            cmd_bld.append(f"FC={fc}")
 
-        self._easy_logged_run(root, cmd, label="libs_build", message="ECRADOFF libs build")
+        self._easy_logged_run(cmd_bld, log_dir=LOGS_DIR,
+                              label="libs_build", message="ECRADOFF libs build")
 
     @staticmethod
     def _get_adept2_cppflags(thread_safe : bool,
@@ -264,8 +265,8 @@ class BuildExt(build_ext):
         if not os.path.exists(os.path.join(adept2_path, "Makefile")):
             # First autoreconf
             cmd_ar = ["autoreconf",'-i', '-f', adept2_path]
-            self._easy_logged_run(adept2_path, cmd_ar,
-                                label="autoreconf", message="Adept2 autoreconf")
+            self._easy_logged_run(cmd_ar, log_dir=LOGS_DIR,
+                                  label="adept2_autoreconf", message="Adept2 autoreconf")
 
 
             # Configure
@@ -287,26 +288,30 @@ class BuildExt(build_ext):
 
             cmd_cf = cmd_cf + " && cd -"
 
-            self._easy_logged_run(adept2_path, cmd_cf, shell=True, label="configure", message="Adept2 configure")
+            self._easy_logged_run(cmd_cf, log_dir=LOGS_DIR, shell=True,
+                                  label="adept2_configure", message="Adept2 configure")
         else:
             print("[Info] Adept2 Makefile already exists, skipping autoreconf and configure.")
 
         # Build
-        cmd = ['make', '-C', adept2_path]
+        cmd_bld = ['make', '-C', adept2_path]
         if num_threads > 0:
-            cmd.append(f"-j{num_threads}")
+            cmd_bld.append(f"-j{num_threads}")
         else:
-            cmd.append("-j")
-        self._easy_logged_run(adept2_path, cmd, label="build", message="Adept2 build")
+            cmd_bld.append("-j")
+        self._easy_logged_run(cmd_bld, log_dir=LOGS_DIR,
+                              label="adept2_build", message="Adept2 build")
 
         # Check
         if not skip_checks:
-            cmd = ['make', '-C', adept2_path, 'check']
-            self._easy_logged_run(adept2_path, cmd, label="check", message="Adept2 check")
+            cmd_chk = ['make', '-C', adept2_path, 'check']
+            self._easy_logged_run(cmd_chk, log_dir=LOGS_DIR,
+                                  label="adept2_check", message="Adept2 check")
 
         # Install
         cmd_install = ['make', '-C', adept2_path, 'install']
-        self._easy_logged_run(adept2_path, cmd_install, label="install", message="Adept2 install")
+        self._easy_logged_run(cmd_install, log_dir=LOGS_DIR,
+                              label="adept2_install", message="Adept2 install")
 
 
     def _build_flotsam(self, flotsam_path, adept2_dir : str,
@@ -333,7 +338,8 @@ class BuildExt(build_ext):
         if not os.path.exists(os.path.join(flotsam_path, "Makefile")):
             # Autoreconf
             cmd_ar = ['autoreconf', '-i', '-f', flotsam_path]
-            self._easy_logged_run(flotsam_path, cmd_ar, label="autoreconf", message="Flotsam autoreconf")
+            self._easy_logged_run(cmd_ar, log_dir=LOGS_DIR,
+                                  label="flotsam_autoreconf", message="Flotsam autoreconf")
 
             # configure
 
@@ -363,19 +369,22 @@ class BuildExt(build_ext):
             if prefix != "":
                 cmd_cf = cmd_cf +f" --prefix={prefix}"
             cmd_cf = cmd_cf + " && cd -"
-            self._easy_logged_run(flotsam_path, cmd_cf, shell=True, label="configure", message="Flotsam configure")
+            self._easy_logged_run(cmd_cf, log_dir=LOGS_DIR, shell=True,
+                                  label="flotsam_configure", message="Flotsam configure")
         else:
             print("[Info] Flotsam Makefile already exists, skipping autoreconf and configure.")
 
-        cmd = ['make', '-C', flotsam_path]
+        cmd_bld = ['make', '-C', flotsam_path]
         if num_threads > 0:
-            cmd.append(f"-j{num_threads}")
+            cmd_bld.append(f"-j{num_threads}")
         else:
-            cmd.append("-j")
-        self._easy_logged_run(flotsam_path, cmd, label="build", message="Flotsam build")
+            cmd_bld.append("-j")
+        self._easy_logged_run(cmd_bld, log_dir=LOGS_DIR,
+                              label="flotsam_build", message="Flotsam build")
 
         cmd_install = ['make', '-C', flotsam_path, 'install']
-        self._easy_logged_run(flotsam_path, cmd_install, label="install", message="Flotsam install")
+        self._easy_logged_run(cmd_install, log_dir=LOGS_DIR,
+                              label="flotsam_install", message="Flotsam install")
 
     def _build_ecrad(self, ecrad_path, profile : str = "",
                      sp_switch : bool = False,
@@ -405,7 +414,8 @@ class BuildExt(build_ext):
 
         print(f"Building ecrad:\n\t{' '.join(cmd)}\n")
 
-        self._easy_logged_run(ecrad_path, cmd, label="build", message="ecRad build")
+        self._easy_logged_run(cmd, log_dir=LOGS_DIR,
+                              label="ecrad_build", message="ecRad build")
 
 setup(
     name='ecradoff',
