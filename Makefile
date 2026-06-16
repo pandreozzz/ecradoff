@@ -21,8 +21,9 @@ INCLUDE_DIR = locals/lib/ #libs/shared
 
 OBJECTS := $(addprefix locals/lib/,$(SOURCES:.f90=.so))
 # $(addprefix libs/shared/,$(SOURCES:.f90=.so))
+ECRADBIN = locals/bin/ecrad
 
-all: $(OBJECTS)
+all: $(OBJECTS) $(ECRADBIN)
 
 FCSHAREDFLAGS = -fpic -fopenmp -shared
 
@@ -46,5 +47,19 @@ endif
 locals/lib/%.so: src/libs/%.f90
 	$(FC) $(FCFLAGS) $(FCSHAREDFLAGS) $(CPPFLAGS) -o $@ $<
 
-clean:
+$(ECRADBIN):
+	ln -s $(shell realpath --relative-to $(dir $@) ecrad/bin/ecrad) $@
+
+clean: clean-flotsam clean-adept
 	rm -f *.o $(OBJECTS)
+	rm -f locals/bin/*
+
+clean-flotsam:
+	rm -f locals/lib/libflotsam*
+	rm -rf locals/include/flotsam*
+	rm -rf locals/share/flotsam*
+
+clean-adept:
+	rm -f locals/lib/libadept*
+	rm -rf locals/include/adept*
+	rm -rf locals/share/adept*
