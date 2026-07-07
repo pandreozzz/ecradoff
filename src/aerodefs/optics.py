@@ -89,9 +89,9 @@ OPTICS_AERO_MAP["48r1"] = {
     }
 }
 # Composite phobic dust
-OPTICS_AERO_MAP["48r1"]["Mineral Dust_bin1"] = OpticIndex(15, False)
-OPTICS_AERO_MAP["48r1"]["Mineral Dust_bin2"] = OpticIndex(16, False)
-OPTICS_AERO_MAP["48r1"]["Mineral Dust_bin3"] = OpticIndex(17, False)
+OPTICS_AERO_MAP["48r1"]["Mineral_Dust_bin1"] = OpticIndex(15, False)
+OPTICS_AERO_MAP["48r1"]["Mineral_Dust_bin2"] = OpticIndex(16, False)
+OPTICS_AERO_MAP["48r1"]["Mineral_Dust_bin3"] = OpticIndex(17, False)
 # Brown OM
 OPTICS_AERO_MAP["48r1"]["Organic_Matter_hydrophilic"] = OpticIndex(11, True)
 OPTICS_AERO_MAP["48r1"]["Organic_Matter_hydrophobic"] = OpticIndex(10, False)
@@ -112,9 +112,9 @@ OPTICS_AERO_MAP["49r1"] = OPTICS_AERO_MAP["48r1"].copy()
 OPTICS_AERO_MAP["48r1_4dclim"]["Sulfates"] = OpticIndex(13, True)
 
 # Hydrophilic Dust
-OPTICS_AERO_MAP["49r1"]["Mineral Dust_bin1"] = OpticIndex(14, True)
-OPTICS_AERO_MAP["49r1"]["Mineral Dust_bin2"] = OpticIndex(15, True)
-OPTICS_AERO_MAP["49r1"]["Mineral Dust_bin3"] = OpticIndex(16, True)
+OPTICS_AERO_MAP["49r1"]["Mineral_Dust_bin1"] = OpticIndex(14, True)
+OPTICS_AERO_MAP["49r1"]["Mineral_Dust_bin2"] = OpticIndex(15, True)
+OPTICS_AERO_MAP["49r1"]["Mineral_Dust_bin3"] = OpticIndex(16, True)
 
 # Bond BC
 OPTICS_AERO_MAP["49r1"]["Black_Carbon_hydrophobic"] = OpticIndex(12, False)
