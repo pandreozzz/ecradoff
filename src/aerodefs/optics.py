@@ -82,10 +82,10 @@ OPTICS_AERO_MAP["48r1"] = {
     **{
     "Nitrate_fine"                    : OpticIndex(9, True),
     "Nitrate_coarse"                  : OpticIndex(10, True),
-    "Ammonium"                        : OpticIndex(8, True),  
-    "Biogenic_Secondary_Organic"      : OpticIndex(6, True),  
+    "Ammonium"                        : OpticIndex(8, True),
+    "Biogenic_Secondary_Organic"      : OpticIndex(6, True),
     "Anthropogenic_Secondary_Organic" : OpticIndex(7, True),
-    "Stratospheric_Sulfate"           : OpticIndex(14, False),  
+    "Stratospheric_Sulfate"           : OpticIndex(14, False),
     }
 }
 # Composite phobic dust
@@ -165,7 +165,7 @@ def get_optical_aerosol(cams_dset: xr.Dataset,
 
         optics_var.append(var)
         optics_idx.append(-this_optics.index if this_optics.hydrophilic else this_optics.index)
-    
+
     if optics_var == []:
         raise ValueError(f"No aerosols in dataset match optics version {aero_version}. " +\
                          f"Available aerosols: {list(cams_dset.data_vars.keys())}. " +\
