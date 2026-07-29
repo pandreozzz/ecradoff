@@ -46,7 +46,7 @@ def gen_reduced_lonlat(ds : XRCoords,
 
 def cast_floats(ds : xr.Dataset) -> xr.Dataset:
     """Casts all float variables in the dataset to FLOAT_DTYPE."""
-    
+
     caster = {}
 
 
@@ -55,7 +55,7 @@ def cast_floats(ds : xr.Dataset) -> xr.Dataset:
             caster[name] = FLOAT_DTYPE
         else:
             caster[name] = da.dtype
-    
+
     return ds.astype(caster, copy=False)
 
 def _full_rename(ds : xr.Dataset) -> xr.Dataset:
@@ -79,7 +79,7 @@ def model_fields(model_files: Union[str, List[str]],
     all_files = list(set(all_files))
 
     if all_files == []:
-        raise ValueError("No files found for the given output_path(s).")
+        raise ValueError(f"No files found for the given output_path(s): {model_files}")
 
     opends_kwargs = {"combine": "by_coords", "parallel":False}
     # Are they zarr archives?
@@ -102,7 +102,7 @@ def model_fields(model_files: Union[str, List[str]],
         else:
             print("Using model times at input datetimes:")
             times = time_sel
-    
+
     # Sanity check
     assert isinstance(times[0], np.datetime64)
 
@@ -118,7 +118,7 @@ def model_fields(model_files: Union[str, List[str]],
             data=model_fields["reduced_points"].values,
             dims=["lat"]
             )
-        
+
     # Populate ML and HL fields
     if "sp" not in model_fields and "lnsp" in model_fields:
             print("Computing sp from lnsp")
@@ -147,7 +147,7 @@ def aerosol_clim(model_data : xr.Dataset,
         CONFIGDICT["aeosol_optics_version"]
         )
     cams_dset.data = _full_rename(cast_floats(cams_dset.data))
-    
+
     # Time interpolation
     if TIME_DIM in model_data.coords:
         model_times = model_data.coords[TIME_DIM]
@@ -162,7 +162,7 @@ def aerosol_clim(model_data : xr.Dataset,
 
     if model_pres_var is None:
         model_pres_var = PRES_VAR
-    
+
     if model_pres_var not in model_data.data_vars:
         raise ValueError(f"Model pressure variable '{model_pres_var}' not found in model data variables: {list(model_data.data_vars.keys())}")
 
@@ -176,7 +176,7 @@ def aerosol_clim(model_data : xr.Dataset,
         coords=cams_dset.data.coords,
         attrs=cams_dset.data.attrs
     )
-    
+
     # 3D interpolation to model grid and vertical levels
     gp_clim = GriddedProfile(cams_dset.data, profile_coord=PRES_VAR, lev_dim=LEV_DIM)
 
@@ -186,7 +186,7 @@ def aerosol_clim(model_data : xr.Dataset,
         ptgt = ptgt.compute(scheduler="threads")
     else:
         ptgt = ptgt.load()
-    
+
     cams_dset.data = gp_clim.interp3d_to(
         ptgt=ptgt,
         tgt_coords=model_data.coords,
@@ -194,7 +194,7 @@ def aerosol_clim(model_data : xr.Dataset,
         verbose=False,
         out_chunks=None #type: ignore
     )
-    
+
     return cams_dset
 
 def ghg_data(model_times : Union[None, xr.DataArray] = None) -> xr.Dataset:
@@ -220,18 +220,18 @@ def ghg_data(model_times : Union[None, xr.DataArray] = None) -> xr.Dataset:
     ghg_data = preprocess_ghg_dset(xr.open_dataset(
         get_ghg_path(),
         decode_times=False))
-    
+
     if model_times is None:
         print("No model times provided, using all GHG dataset times")
         return ghg_data
-    
+
     model_tmin, model_tmax = model_times.min(), model_times.max()
     ghg_tmin, ghg_tmax = ghg_data[TIME_DIM].min(), ghg_data[TIME_DIM].max()
     if model_tmin < ghg_tmin or model_tmax > ghg_tmax:
         raise ValueError(f"Model times are out of bounds of GHG dataset times. " +\
                          f"Model time range: {model_tmin} to {model_tmax}. " +\
                          f"GHG dataset time range: {ghg_tmin} to {ghg_tmax}.")
-    
+
     ghg_data = ghg_data.interp(**{
         TIME_DIM: model_times, "method":"linear"
         }).astype(FLOAT_DTYPE).load()
