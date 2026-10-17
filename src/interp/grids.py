@@ -1,14 +1,4 @@
-"""Handle grid descriptors for interpolation.
-Full numpy interfaces. xArray interfaces are in wrapper.py
-* Rectangular (regular) grids
-* Reduced Gaussian grids
-* Unstructured grids
----
-Supported bilinear interpolations:
-* Rectangular to rectangular
-* Rectangular to/from reduced Gaussian
-* Any to unstructured
-* None from unstructured
+"""Handles grid descriptors for interpolation.
 """
 from __future__ import annotations
 
@@ -18,22 +8,53 @@ from enum import Enum
 import numpy as np
 
 class GridType(Enum):
-    """Grid types supported for interpolation."""
+    """Grid types supported for interpolation.
+    REGULAR : Regular latitude-longitude grid.
+    REDUCED : Reduced latitude-longitude grid with varying number of points per latitude.
+    UNSTRUC : Unstructured grid.
+    """
     REGULAR = 1
     REDUCED = 2
     UNSTRUC = 3
 
 class GridDesc:
+    """Grid descriptor for interpolation.
+
+    Attributes
+    ----------
+    gtyp : GridType
+        Type of the grid (REGULAR, REDUCED, UNSTRUC).
+    lon : np.ndarray
+        Longitudes of the grid points.
+    lat : np.ndarray
+        Latitudes of the grid points.
+    reduced_pts : Union[None, np.ndarray]
+        Number of points per latitude for reduced grids, None otherwise.
+    npts : int
+        Total number of grid points.
+    """
     def __init__(self, gtyp : GridType,
                  lon : np.ndarray, lat : np.ndarray,
                  reduced_pts : Optional[np.ndarray] = None,
                 ):
-        """Initialise grid descriptor and validate inputs."""
-        
+        """Initialise grid descriptor and validate inputs.
+
+        Parameters
+        ----------
+        gtyp : GridType
+            Type of the grid (REGULAR, REDUCED, UNSTRUC).
+        lon : np.ndarray
+            Longitudes of the grid points.
+        lat : np.ndarray
+            Latitudes of the grid points.
+        reduced_pts : Optional[np.ndarray], optional
+            Number of points per latitude for reduced grids, by default None.
+        """
+
         self.gtyp : GridType = gtyp
         self.lon : np.ndarray = lon
         self.lat : np.ndarray = lat
-        self.reduced_pts : Union[None, np.ndarray] = reduced_pts 
+        self.reduced_pts : Union[None, np.ndarray] = reduced_pts
 
         if gtyp == GridType.REGULAR:
             n_points = len(lon)*len(lat)
@@ -41,7 +62,7 @@ class GridDesc:
         elif gtyp == GridType.REDUCED:
             if self.reduced_pts is None:
                 raise ValueError("reduced_pts must be specified for reduced grids!")
-        
+
             if (len(self.lat) != len(self.lon)) or \
                 (len(self.reduced_pts) != len(self.lat)):
                 raise ValueError(
@@ -59,19 +80,32 @@ class GridDesc:
                     f"lon ({len(lon)}) and lat ({len(lat)}) "+\
                     "must have the same length!")
             n_points = len(lon)
-        
+
         self.npts : int = n_points
-    
-    def get_lat(self):
-        """Get lats on data grid points"""
+
+    def get_lat(self) -> np.ndarray:
+        """Get lats on data grid points
+
+        Returns
+        -------
+        np.ndarray
+            Latitudes of the data grid points.
+
+        """
         if self.gtyp == GridType.REDUCED:
             assert self.reduced_pts is not None
             return np.repeat(self.lat, self.reduced_pts)
         else:
             return self.lat
-        
-    def get_lon(self):
-        """Get lons on data grid points"""
+
+    def get_lon(self) -> np.ndarray:
+        """Get lons on data grid points
+
+        Returns
+        -------
+        np.ndarray
+            Longitudes of the data grid points.
+        """
         if self.gtyp == GridType.REDUCED:
             assert self.reduced_pts is not None
             return np.concatenate([np.arange(0, 360, 360/rpn)[0:rpn]
@@ -81,9 +115,19 @@ class GridDesc:
 
 
 class GriddedData:
-    """Data and grids"""
+    """Data on grids.
+    """
     def __init__(self, data : np.ndarray, grid : GridDesc):
-        """Data must have last dimension of size grid.npts"""
+        """Initialize a GriddedData object.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data array. Must have the last dimension of size grid.npts.
+        grid : GridDesc
+            The grid description corresponding to the data.
+
+        """
         self.data : np.ndarray = data
         self.grid : GridDesc = grid
 
@@ -93,10 +137,22 @@ class GriddedData:
         # Check grid is consistent with data shape
         if grid.npts != data.shape[-1]:
             raise ValueError(f"Grid points ({grid.npts}) do not match last dim of data ({data.shape})")
-        
+
     def interp2d_to(self, tgt_grid : GridDesc, **interp_kwargs) -> GriddedData:
-        """Interpolate field to target grid and return interpolated GriddedField.
-        interp_kwargs passed directly to interp2d
+        """Interpolate field to target grid and return interpolated GriddedData.
+
+        Parameters
+        ----------
+        tgt_grid : GridDesc
+            The target grid to interpolate to.
+        **interp_kwargs
+            Additional keyword arguments passed directly to interface.interp2d
+
+        Returns
+        -------
+        GriddedData
+            The interpolated data on the target grid.
+
         """
         from .interface import interp_2d
 
@@ -110,5 +166,5 @@ class GriddedData:
         inp_shape = inp_shape+(self.grid.npts,)
 
         interp_data = interp_2d(self.data.reshape(inp_shape), self.grid, tgt_grid, **interp_kwargs).reshape(out_shape)
-        
+
         return GriddedData(interp_data, tgt_grid)

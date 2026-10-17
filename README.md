@@ -1,3 +1,5 @@
+<img src="logo_ecradoff.svg" alt="ecRadOff logo" width="100" height="100">
+
 # ecRadOff
 Framework for offline ecRad computations, supporting usage of the ecRad FLOTSAM version for simulating satellite spectral reflectances and radiances.
 
@@ -37,11 +39,12 @@ $ source .venv/bin/activate
   - BLAS/LAPACK libraries, you may need to set by hand the BLAS_LIB environment when invoking the build script
 
 ### Building libraries and ecRad
-There is a python `setup.py` script to build all sources (ecRad and its dependencies, the native ecRadOff Fortran libraries). Python requirements are in `requirements.txt`. Ideally, everything should be handled automagically with:
+There is a python `setup.py` script to build all sources (ecRad and its dependencies, the native ecRadOff Fortran libraries).
+Ideally, everything should be handled automagically with:
 ```
 $ pip install -e .
 ```
-however, it is more probable than not that this will not work. While installing requirements with `pip install -r requirements.txt` should be no problem, `setup.py` is more likely not to collaborate much. You can invoke it directly and eventually fine-tune it to your needs and environment. To print available environment options:
+however, it is more probable than not that this will not work. `setup.py` can be invoked directly and eventually fine-tuned to specific needs and environments. To print available environment options:
 ```
 $ python setup.py help
 ```
@@ -51,7 +54,7 @@ $ python setup.py build
 ```
 
 ###  Most-used environment variables
-You can select the preferred ecRad profile from (`ecrad/Makefile.profile`) by setting the `PROFILE` environment variable. For example, 
+You can select the preferred ecRad profile from (`ecrad/Makefile.profile`) by setting the `PROFILE` environment variable. For example,
 ```
 $ PROFILE=profile python setup.py build
 ```
