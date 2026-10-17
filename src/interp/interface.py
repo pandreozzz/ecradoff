@@ -1,11 +1,12 @@
+from functools import cache
 import ctypes as ct
 import numpy as np
 
 from typing import Optional, List
 
-from ..main.types import ensure_dtype_and_contiguous
+from main.types import ensure_dtype_and_contiguous
 from .grids import GridDesc, GridType
-from ..main.config import INTERP2D_LIB, INTERPVERT_LIB, INTERPLUT_LIB, USE_DP
+from main.config import INTERP2D_LIB, INTERPVERT_LIB, INTERPLUT_LIB, USE_DP
 
 # Types
 np_real = np.float64 if USE_DP else np.float32
@@ -18,42 +19,66 @@ c_real_ptr = np.ctypeslib.ndpointer(np_real)
 c_int_ptr = np.ctypeslib.ndpointer(np_int)
 
 # 2D interpolation
-f_lib_2d = ct.CDLL(INTERP2D_LIB)
-# Set types for all interpolation interfaces
-head_2dtypes = [c_real_ptr]*6+[ct_int]*7
-tail_2dtypes = [ct_int]+[ct_real]+[ct_bool]
-# Interface type declarations
-f_lib_2d.interp_2d_rec2rec.argtypes = head_2dtypes+tail_2dtypes
-f_lib_2d.interp_2d_red2rec.argtypes = head_2dtypes+[c_int_ptr]+tail_2dtypes
-f_lib_2d.interp_2d_rec2red.argtypes = head_2dtypes+[c_int_ptr]+[ct_int]+[ct_real]
-f_lib_2d.interp_2d_red2red.argtypes = head_2dtypes+[c_int_ptr]*2+tail_2dtypes
-f_lib_2d.interp_2d_rec2uns.argtypes = head_2dtypes+tail_2dtypes
-f_lib_2d.interp_2d_red2uns.argtypes = head_2dtypes+[c_int_ptr]+tail_2dtypes
+@cache
+def load_interp_2d_lib():
+    """ Load the 2D interpolation library and set argument types"""
+    f_lib_2d = ct.CDLL(INTERP2D_LIB)
+    # Set types for all interpolation interfaces
+    head_2dtypes = [c_real_ptr]*6+[ct_int]*7
+    tail_2dtypes = [ct_int]+[ct_real]+[ct_bool]
+    # Interface type declarations
+    f_lib_2d.interp_2d_rec2rec.argtypes = head_2dtypes+tail_2dtypes
+    f_lib_2d.interp_2d_red2rec.argtypes = head_2dtypes+[c_int_ptr]+tail_2dtypes
+    f_lib_2d.interp_2d_rec2red.argtypes = head_2dtypes+[c_int_ptr]+[ct_int]+[ct_real]
+    f_lib_2d.interp_2d_red2red.argtypes = head_2dtypes+[c_int_ptr]*2+tail_2dtypes
+    f_lib_2d.interp_2d_rec2uns.argtypes = head_2dtypes+tail_2dtypes
+    f_lib_2d.interp_2d_red2uns.argtypes = head_2dtypes+[c_int_ptr]+tail_2dtypes
+    return f_lib_2d
 
 # Vertical interpolation
-f_lib_vert = ct.CDLL(INTERPVERT_LIB)
-f_lib_vert.interp.argtypes = [c_real_ptr,]*2+[c_int_ptr, c_real_ptr]+[ct_int,]*6
-f_lib_vert.interp_fld.argtypes = [c_real_ptr,]*2+[c_int_ptr, c_real_ptr]+[ct_int,]*6
+@cache
+def load_interp_vert_lib():
+    """ Load the vertical interpolation library and set argument types"""
+    f_lib_vert = ct.CDLL(INTERPVERT_LIB)
+    f_lib_vert.interp.argtypes = [c_real_ptr,]*2+[c_int_ptr, c_real_ptr]+[ct_int,]*6
+    f_lib_vert.interp_fld.argtypes = [c_real_ptr,]*2+[c_int_ptr, c_real_ptr]+[ct_int,]*6
+    return f_lib_vert
 
 # LUT interpolation
-f_lib_lut = ct.CDLL(INTERPLUT_LIB)
-f_lib_lut.getvals.argtypes = [c_real_ptr,] + [ct_int,]*6 + [c_real_ptr,] *2 + [c_int_ptr, c_real_ptr] + [c_real_ptr,] * 2 + [c_int_ptr,] + [ct_int, ct_bool]
-# f_lib_lut.getvals_nowsp.argtypes =  [c_real_ptr,] + [ct_int,]*6 + [c_real_ptr,]*2 + [c_int_ptr, c_real_ptr] + [ct_int, ct_bool]
+@cache
+def load_interp_lut_lib():
+    """ Load the LUT interpolation library and set argument types"""
+    f_lib_lut = ct.CDLL(INTERPLUT_LIB)
+    f_lib_lut.getvals.argtypes = [c_real_ptr,] + [ct_int,]*6 + [c_real_ptr,] *2 + [c_int_ptr, c_real_ptr] + [c_real_ptr,] * 2 + [c_int_ptr,] + [ct_int, ct_bool]
+    # f_lib_lut.getvals_nowsp.argtypes =  [c_real_ptr,] + [ct_int,]*6 + [c_real_ptr,]*2 + [c_int_ptr, c_real_ptr] + [ct_int, ct_bool]
+    return f_lib_lut
 
 
-def interp_2d(fsrc, srcgrid : GridDesc, tgtgrid : GridDesc,
+def interp_2d(fsrc : np.ndarray, srcgrid : GridDesc, tgtgrid : GridDesc,
               lat_row : bool = True,
               chunk_size_max : Optional[int] = None,
-              abs_tolerance : float = 1.e-3):
+              abs_tolerance : float = 1.e-3) -> np.ndarray:
     """ 2D bilinear interpolation from srcgrid to tgtgrid
 
-    Args:
-        fsrc: Source fields, shape (nflds, nxysrc) and nxysrc must match srcgrid.npts
-        srcgrid: Source grid descriptor
-        tgtgrid: Target grid descriptor
-        lat_row: is (lat,lon) (true) or (lon,lat) (false) for the flattened fsrc fields?
-        chunk_size_max: Maximum chunk size for interpolation (very relevant for unstructured targets)
-        abs_tolerance: Absolute tolerance for interpolation (passed to C library)
+    Parameters
+    ----------
+    fsrc : np.ndarray
+        Source fields, shape (nflds, nxysrc) and nxysrc must match srcgrid.npts
+    srcgrid : GridDesc
+        Source grid descriptor
+    tgtgrid : GridDesc
+        Target grid descriptor
+    lat_row : bool, optional
+        Is (lat,lon) (true) or (lon,lat) (false) for the flattened fsrc fields? Default is True.
+    chunk_size_max : Optional[int], optional
+        Maximum chunk size for interpolation (very relevant for unstructured targets), by default None.
+    abs_tolerance : float, optional
+        Absolute tolerance for interpolation (passed to C library), by default 1.e-3
+
+    Returns
+    -------
+    np.ndarray
+        Interpolated fields, shape (nflds, tgtgrid.npts)
     """
 
     nflds, nxysrc = fsrc.shape
@@ -120,6 +145,8 @@ def interp_2d(fsrc, srcgrid : GridDesc, tgtgrid : GridDesc,
         ct_int(chunk_size_max), ct_real(abs_tolerance), ct_bool(lat_row)
     ]
 
+    f_lib_2d = load_interp_2d_lib()
+
     if (tgtgrid.gtyp == GridType.REGULAR):
         if (srcgrid.gtyp == GridType.REGULAR):
             f_lib_2d.interp_2d_rec2rec(
@@ -166,14 +193,25 @@ def interp_2d(fsrc, srcgrid : GridDesc, tgtgrid : GridDesc,
     return fdst
 
 def interp_vert(psrc : np.ndarray, ptgt : np.ndarray,
-                chunk_size_max : int = 1000):
+                chunk_size_max : int = 1000) -> tuple[np.ndarray, np.ndarray]:
     """
-        Interpolates psrc to ptgt
-        psrc(ncom,nsrc,nlevsrc)
-        ptgt(ncom,ntgt,nlevtgt)
+    Calculate weights for 1-D interpolation along the pressure coordinate (psrc -> ptgt)
 
-        returns
-        tgtlevs(ncom,nsrc,ntgt,nlevtgt), weights(ncom,nsrc,ntgt,nlevtgt)
+    Parameters
+    ----------
+    psrc : np.ndarray
+        Source pressure levels, shape (ncom, nsrc, nlevsrc)
+    ptgt : np.ndarray
+        Target pressure levels, shape (ncom, ntgt, nlevtgt)
+    chunk_size_max : int, optional
+        Maximum chunk size for interpolation, by default 1000.
+
+    Returns
+    -------
+    tgtlevs : np.ndarray
+        Target levels for interpolation, shape (ncom, nsrc, ntgt, nlevtgt)
+    weights : np.ndarray
+        Interpolation weights, shape (ncom, nsrc, ntgt, nlevtgt)
     """
 
     ncom,ntgt,nlevtgt  = ptgt.shape
@@ -183,6 +221,8 @@ def interp_vert(psrc : np.ndarray, ptgt : np.ndarray,
         raise ValueError(
                 "Different common dimension size between source and target!"+\
                 f"({ncom2},{nsrc}) and ({ncom},{nsrc})")
+
+    f_lib_vert = load_interp_vert_lib()
 
     outshape = (ncom,nsrc,ntgt,nlevtgt)
 
@@ -202,19 +242,29 @@ def interp_vert(psrc : np.ndarray, ptgt : np.ndarray,
         )
     del psrc, ptgt
 
-    return tgtlevs, weights
+    return (tgtlevs, weights)
 
 def interp_fld(fsrc : np.ndarray,
                tgtlevs : np.ndarray, weights : np.ndarray,
-               chunk_size_max : int = 1000):
+               chunk_size_max : int = 1000) -> np.ndarray:
     """
-        Interpolates fields according to weights
-        fsrc(ncom,nsrc,nlevsrc)
-        tgtlevs(ncom,ntgt,nlevtgt)
-        weights(ncom,ntgt,nlevtgt)
+    1-D interpolation of fields according to weights
 
-        returns
-        fdst(ncom,nsrc,ntgt,nlevtgt)
+    Parameters
+    ----------
+    fsrc : np.ndarray
+        Source field, shape (ncom, nsrc, nlevsrc)
+    tgtlevs : np.ndarray
+        Target levels for interpolation, shape (ncom, ntgt, nlevtgt)
+    weights : np.ndarray
+        Interpolation weights, shape (ncom, ntgt, nlevtgt)
+    chunk_size_max : int, optional
+        Maximum chunk size for interpolation, by default 1000.
+
+    Returns
+    -------
+    fdst : np.ndarray
+        Interpolated field, shape (ncom, nsrc, ntgt, nlevtgt)
     """
 
     ncom,nsrc,nlevsrc = fsrc.shape
@@ -229,12 +279,15 @@ def interp_fld(fsrc : np.ndarray,
                 f"tgtlevs(ncom={ncom2},ntgt={ntgt},nlevtgt{nlevtgt})"+\
                 f"tgtlevs(ncom={ncom3},ntgt={ntgt2},nlevtgt{nlevtgt2})")
 
+    f_lib_vert = load_interp_vert_lib()
+
     fdstshape = (ncom,nsrc,ntgt,nlevtgt)
 
     # Enforce contiguity
     fdst = ensure_dtype_and_contiguous(np.empty(fdstshape, dtype=np_real), np_real)
     tgtlevs_cont = np.ascontiguousarray(tgtlevs)
     weights_cont = np.ascontiguousarray(weights)
+
 
     f_lib_vert.interp_fld(
             ensure_dtype_and_contiguous(fsrc, np_real),
@@ -254,16 +307,29 @@ def get_lutvals(lut_stack : np.ndarray,
                 wspeeds_fields : Optional[np.ndarray] = None,
                 lut_wspeeds_bins : Optional[List[np.ndarray]] = None,
                 c_order : bool = True,
-                chunksize : int = 10000):
-    """Interpolate the LUT stack to fields values.
+                chunksize : int = 10000) -> np.ndarray:
+    """
+    Interpolate the LUT stack to fields values.
 
+    Parameters
+    ----------
     lut_stack : np.ndarray (map_size, nmaps)
         The LUT stack, where each column contains the LUT map
-    _fields : np.ndarray (nvals, nfields=nwspeed | nspecies)
+    species_fields : np.ndarray (nvals, nfields=nwspeed | nspecies)
         The field values to interpolate the LUT stack to.
-        wspeeds_fields is optional
+    lut_species_bins : List[np.ndarray]
+        The LUT bins for each species. Length is the number of represented LUT species
+    lut_wspeeds_bins : List[np.ndarray], optional
+        The LUT bins for each vertical velocity field. Length is the number of vertical velocity fields (2 if mean and standard deviation are used)
+    wspeeds_fields : np.ndarray (nvals, nfields=nwspeed), optional
+        The vertical velocity fields
+    c_order : bool, optional
+        Is the LUT stored in C order (row-major) in memory. Default is True.
+    chunksize : int, optional
+        The chunk size to use for the interpolation. Default is 10000.
 
     Returns:
+    --------
     val_out_data : np.ndarray (nvals, nmaps)
         The interpolated LUT values for each field value in _fields
     """
@@ -289,6 +355,8 @@ def get_lutvals(lut_stack : np.ndarray,
     else:
         nwspeed = 0
         nwspeedbins = np.array([], dtype=np_int)
+
+    f_lib_lut = load_interp_lut_lib()
 
     nspecbins = ensure_dtype_and_contiguous(
         np.array([len(spec) for spec in lut_species_bins], np_int),

@@ -20,8 +20,32 @@ class ArrayGridDesc(GridDesc):
                  reduced_pts : Optional[np.ndarray] = None
                  ):
         super().__init__(gtyp, lons, lats, reduced_pts)
-        self.datadims : List[str] = datadims
-        self.coordims : List[str] = coordims
+        self._datadims : List[str] = datadims
+        self._coordims : List[str] = coordims
+
+    @property
+    def datadims(self) -> List[str]:
+        """
+        Data dimension names.
+
+        Returns
+        -------
+        List[str]
+            The names of the data dimensions.
+        """
+        return self._datadims
+
+    @property
+    def coordims(self) -> List[str]:
+        """
+        Coordinate dimension names.
+
+        Returns
+        -------
+        List[str]
+            The names of the coordinate dimensions.
+        """
+        return self._coordims
 
     def is_equal_to(self, other : ArrayGridDesc,
                     atol : float = 1.e-4) -> bool:
@@ -59,7 +83,7 @@ class ArrayGridDesc(GridDesc):
 
         # Dimension name
         if self.gtyp == GridType.REGULAR:
-            dims = [d for d in self.datadims
+            dims = [d for d in self._datadims
                     if "lat" in d.lower()]
         else:
             dims = self.datadims
@@ -91,15 +115,15 @@ class ArrayGridDesc(GridDesc):
         # Dimension name
         # Dimension name
         if self.gtyp == GridType.REGULAR:
-            dims = [d for d in self.datadims
+            dims = [d for d in self._datadims
                     if "lon" in d.lower()]
         else:
-            dims = self.datadims
+            dims = self._datadims
 
         if len(dims) == 0:
-            raise ValueError("Could not find latitude dimension in coordims!")
+            raise ValueError("Could not find longitude dimension in coordims!")
         elif len(dims) > 1:
-            raise ValueError("Multiple latitude dimensions found in coordims!")
+            raise ValueError("Multiple longitude dimensions found in coordims!")
         else:
             dim = dims[0]
 
@@ -215,10 +239,26 @@ class GriddedArray():
                     verbose : bool = False,
                     lat_row : bool = True,
                     **interp_kwargs) -> GriddedArray:
-        """Interpolate field to target grid and return interpolated GriddedArray.
-        interp_kwargs passed directly to interp2d
-        lat_row : bool (default True)
-            For rectangular grids, what is the shape before flattening if true then (lat, lon) otherwise (lon, lat) - Since the parallelisation in the interp2d library is done along the first dimension, this gives some control for cases with a very different number of lat and lon dimension sizes.
+        """
+        Interpolate field to target grid and return interpolated GriddedArray.
+
+        Parameters
+        ----------
+        tgt_grid : XRCoords
+            The target grid coordinates.
+        tgt_datadims : Optional[List[str]], optional
+            The data dimensions for the target grid. Default is None.
+        verbose : bool, optional
+            Whether to print progress messages. Default is False.
+        lat_row : bool, optional
+            For rectangular grids, what is the shape before flattening if true then (lat, lon) otherwise (lon, lat). Since the parallelisation in the interp2d library is done along the first dimension, this gives some control for cases with a very different number of lat and lon dimension sizes. Default is True.
+        **interp_kwargs
+            Additional keyword arguments passed directly to interp2d.
+
+        Returns
+        -------
+        GriddedArray
+            The interpolated gridded array on the target grid.
 
         """
         from ..tools.stack import tools_to_stack_2dgrids

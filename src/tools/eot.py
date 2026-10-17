@@ -57,7 +57,7 @@ class Irradiance:
 
         # Apply delay
         self.date = date - np.timedelta64(1, "s") * int(delay_s)
-        
+
         # Core quantities
         self.year_fraction = self._year_fraction()
         self.day_fraction = self._day_fraction()
@@ -76,7 +76,22 @@ class Irradiance:
     # -----------------------------
 
     def _two_pi(self, for_rel: str) -> float:
-        """IFS-like 2*pi constants vary slightly by formula in the legacy code."""
+        """
+        Return the 2*pi constant with slight variations as found in the legacy IFS code for astronomical calculations.
+
+        Parameters
+        ----------
+        for_rel : str
+            Specifies which part of the calculations the 2*pi constant is for. Options are:
+            - "theta"
+            - "theta_rem"
+            - "decl"
+
+        Returns
+        -------
+        float
+            The 2*pi "constant"
+        """
         if not self.ifs_like_2pi:
             return 2 * np.pi
         if for_rel == "theta":
@@ -89,7 +104,14 @@ class Irradiance:
         return 6.283185
 
     def _year_fraction(self) -> NumberOrArray:
-        """Fraction of the year elapsed at `date`."""
+        """
+        Fraction of the year elapsed at `date`.
+
+        Returns
+        -------
+        NumberOrArray
+            Fraction of the year elapsed at `date`.
+        """
         year_type = "datetime64[Y]"
         if isinstance(self.date, xr.DataArray):
             this_year = self.date.values.astype(year_type)
@@ -98,7 +120,14 @@ class Irradiance:
         return (self.date - this_year) / (np.timedelta64(24, "h") * YEADAYS) #type: ignore
 
     def _day_fraction(self) -> NumberOrArray:
-        """Fraction of the day elapsed at `date`."""
+        """
+        Fraction of the day elapsed at `date`.
+
+        Returns
+        -------
+        NumberOrArray
+            Fraction of the day elapsed at `date`.
+        """
         day_type = "datetime64[D]"
         if isinstance(self.date, xr.DataArray):
             today = self.date.values.astype(day_type)
@@ -107,7 +136,19 @@ class Irradiance:
         return (self.date - today) / np.timedelta64(24, "h") #type: ignore
 
     def _get_solar_irr(self, solar_irr_path: str) -> NumberOrArray:
-        """Sample total solar irradiance (CMIP6 `tsi`) and scale by distance."""
+        """
+        Sample total solar irradiance (CMIP6 `tsi`) and scale by distance.
+
+        Parameters
+        ----------
+        solar_irr_path : str
+            Path to the solar irradiance dataset (NetCDF format).
+
+        Returns
+        -------
+        NumberOrArray
+            Scaled total solar irradiance.
+        """
         sun_irr_dset = xr.open_dataset(solar_irr_path, decode_times=False)["tsi"]
 
         if isinstance(self.date, xr.DataArray):
@@ -137,19 +178,47 @@ class Irradiance:
         return sun_irr * (1.0 / (self.earth_sun_dist_frac ** 2))
 
     def _orbit_theta(self) -> NumberOrArray:
-        """Earth's orbital angle (REL reference)."""
+        """
+        Earth's orbital angle (REL reference).
+
+        Returns
+        -------
+        NumberOrArray
+            Earth's orbital angle (REL reference).
+        """
         return 1.7535 + self._two_pi("theta") * self.year_fraction
 
     def _orbit_theta_rem(self) -> NumberOrArray:
-        """Earth's orbital angle (REM reference)."""
+        """
+        Earth's orbital angle (REM reference).
+
+        Returns
+        -------
+        NumberOrArray
+            Earth's orbital angle (REM reference).
+        """
         return 6.240075 + self._two_pi("theta_rem") * self.year_fraction
 
     def _earth_sun_dist_frac(self) -> NumberOrArray:
-        """Earth–Sun distance as fraction of mean distance REA (RRS reference)."""
+        """
+        Earth–Sun distance as fraction of mean distance REA (RRS reference).
+
+        Returns
+        -------
+        NumberOrArray
+            Earth–Sun distance as fraction of mean distance REA (RRS reference).
+        """
         return 1.0001 - 0.0163 * np.sin(self.orbit_theta) + 0.0037 * np.cos(self.orbit_theta)
 
     def _sun_declination(self) -> NumberOrArray:
-        """Solar declination (radians)."""
+        """
+        Solar declination (radians).
+
+        Returns
+        -------
+        NumberOrArray
+            Solar declination (radians).
+        """
         rel = (
             4.8952
             + self._two_pi("decl") * self.year_fraction
@@ -161,7 +230,14 @@ class Irradiance:
         return np.arcsin(np.sin(REPSM) * np.sin(rel))
 
     def _equation_of_time_s(self) -> NumberOrArray:
-        """Equation of time (seconds)."""
+        """
+        Equation of time (seconds).
+
+        Returns
+        -------
+        NumberOrArray
+            Equation of time (seconds).
+        """
         rel = 4.8951 + self._two_pi("theta") * self.year_fraction
         theta_rem = self._orbit_theta_rem()
         sin_rem = np.sin(theta_rem)
@@ -179,15 +255,36 @@ class Irradiance:
 
 
     def solar_time(self) -> NumberOrArray:
-        """Solar time (radians)."""
+        """
+        Solar time (radians).
+
+        Returns
+        -------
+        NumberOrArray
+            Solar time (radians).
+        """
         return 2 * np.pi * (self.eq_of_time_s / DAYSECS + self.day_fraction)
 
     def solar_coords_rad(self) -> Tuple[NumberOrArray, NumberOrArray]:
-        """Sun position in Earth coordinates (lat, lon) in radians."""
+        """
+        Sun position in Earth coordinates (lat, lon) in radians.
+
+        Returns
+        -------
+        Tuple[NumberOrArray, NumberOrArray]
+            Latitude and longitude of the Sun in radians.
+        """
         return self.sun_declination_rad, self.solar_time()
 
     def solar_coords_deg(self) -> Tuple[NumberOrArray, NumberOrArray]:
-        """Sun position in Earth coordinates (lat, lon) in degrees."""
+        """
+        Sun position in Earth coordinates (lat, lon) in degrees.
+
+        Returns
+        -------
+        Tuple[NumberOrArray, NumberOrArray]
+            Latitude and longitude of the Sun in degrees.
+        """
         lat_rad, lon_rad = self.solar_coords_rad()
         return np.rad2deg(lat_rad), np.rad2deg(lon_rad)
 
@@ -204,7 +301,7 @@ class Irradiance:
 
         Returns
         -------
-        (sza, saa) : tuple
+        tuple[NumberOrArray, NumberOrArray]
             Solar zenith angle and solar azimuth angle (radians).
         """
         lams = np.mod(-2 * np.pi * (self.eq_of_time_s / \
@@ -222,17 +319,24 @@ class Irradiance:
     def mu0_cos_sza_rad(self, phi: NumberOrArray, lam: NumberOrArray,
                         zamu0: bool = True, night_to_zero : bool = True) -> NumberOrArray:
         """Cosine of the solar zenith angle (SZA) at the current date (radians input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
+        phi : NumberOrArray
             Latitude (radians).
-        lam : float | np.ndarray
-            Longitude (radians). 
+        lam : NumberOrArray
+            Longitude (radians).
+        zamu0 : bool, optional
+            If True, apply the "zamu0" correction to the cosine of SZA. It prevents too-close-to-zero values.
+            Default is True.
+        night_to_zero : bool, optional
+            Set to False if radiation output is meant to be spread across multiple timesteps
+            (beyond the horizon used for calculations). Default is True.
 
-        zamu0: bool (default True)
-            If True, apply the "zamu0" correction to the cosine of SZA. It prevents too-close-to-zero values
-        night_to_zero: bool (default True)
-            set to false if radiation output is meant to be spread across multiple timesteps (beyond the horizon used for calculations)
+        Returns
+        -------
+        NumberOrArray
+            Cosine of the solar zenith angle (SZA).
         """
         decl = self.sun_declination_rad
         h_angle = self.solar_time() + lam + np.pi
@@ -244,86 +348,144 @@ class Irradiance:
             mu0 = zamu0_correction(mu0, night_to_zero=night_to_zero)
         else:
             mu0 = np.clip(mu0, 0, 1.0)
-    
+
         return mu0
 
     def mu0_cos_sza_deg(self, phi: NumberOrArray, lam: NumberOrArray,
                         zamu0: bool = True, night_to_zero : bool = True) -> NumberOrArray:
         """Cosine of SZA (degrees input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
+        phi : NumberOrArray
             Latitude (degrees).
-        lam : float | np.ndarray
+        lam : NumberOrArray
             Longitude (degrees).
+        zamu0 : bool, optional
+            If True, apply the "zamu0" correction to the cosine of SZA. It prevents too-close-to-zero values.
+            Default is True.
+        night_to_zero : bool, optional
+            Set to False if radiation output is meant to be spread across multiple timesteps
+            (beyond the horizon used for calculations). Default is True.
 
-        zamu0: bool (default True)
-        If True, apply the "zamu0" correction to the cosine of SZA. It prevents too-close-to-zero values
-        night_to_zero: bool (default True)
-            set to false if radiation output is meant to be spread across multiple timesteps (beyond the horizon used for calculations)
+        Returns
+        -------
+        NumberOrArray
+            Cosine of the solar zenith angle (SZA).
+
         """
-        return self.mu0_cos_sza_rad(np.deg2rad(phi), np.deg2rad(lam), zamu0=zamu0, night_to_zero=night_to_zero)
+        return self.mu0_cos_sza_rad(np.deg2rad(phi), np.deg2rad(lam),
+                                    zamu0=zamu0, night_to_zero=night_to_zero)
 
     def zenith_rad(self, phi: NumberOrArray, lam: NumberOrArray) -> NumberOrArray:
         """Zenith angle (radians input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
+        phi : NumberOrArray
             Latitude (radians).
-        lam : float | np.ndarray
-            Longitude (radians). 
+        lam : NumberOrArray
+            Longitude (radians).
+
+        Returns
+        -------
+        NumberOrArray
+            Zenith angle (radians).
         """
         return np.arccos(self.mu0_cos_sza_rad(phi, lam))
 
     def zenith_deg(self, phi: NumberOrArray, lam: NumberOrArray) -> NumberOrArray:
         """Zenith angle (degrees input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
+        phi : NumberOrArray
             Latitude (degrees).
-        lam : float | np.ndarray
-            Longitude (degrees). 
+        lam : NumberOrArray
+            Longitude (degrees).
+
+        Returns
+        -------
+        NumberOrArray
+            Zenith angle (degrees).
         """
         return self.zenith_rad(np.deg2rad(phi), np.deg2rad(lam))
 
     def azimuthrad_rad(self, phi: NumberOrArray, lam: NumberOrArray) -> NumberOrArray:
         """Azimuth angle in radians (radians input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
+        phi : NumberOrArray
             Latitude (radians).
-        lam : float | np.ndarray
-            Longitude (radians). 
+        lam : NumberOrArray
+            Longitude (radians).
+
+        Returns
+        -------
+        NumberOrArray
+            Azimuth angle in radians.
         """
         _, saa = self.solar_angles(phi, lam)
         return saa
 
     def azimuthrad_deg(self, phi: NumberOrArray, lam: NumberOrArray) -> NumberOrArray:
         """Azimuth angle in radians (degrees input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
-            Latitude (radians).
-        lam : float | np.ndarray
-            Longitude (radians). 
+        phi : NumberOrArray
+            Latitude (degrees).
+        lam : NumberOrArray
+            Longitude (degrees).
+
+        Returns
+        -------
+        NumberOrArray
+            Azimuth angle in radians.
         """
         _, saa = self.solar_angles(np.deg2rad(phi), np.deg2rad(lam))
         return saa
-    
+
     def azimuthdeg_deg(self, phi: NumberOrArray, lam: NumberOrArray) -> NumberOrArray:
         """Azimuth angle in degrees (degrees input).
+
         Parameters
         ----------
-        phi : float | np.ndarray
+        phi : NumberOrArray
             Latitude (degrees).
-        lam : float | np.ndarray
-            Longitude (degrees). 
+        lam : NumberOrArray
+            Longitude (degrees).
+
+        Returns
+        -------
+        NumberOrArray
+            Azimuth angle in degrees.
         """
         return np.mod(np.rad2deg(self.azimuthrad_rad(np.deg2rad(phi), np.deg2rad(lam))), 360.0)
 
 def zamu0_correction(mu_in : NumberOrArray,
-                     night_to_zero : bool) -> NumberOrArray:
-    """Applies the zamu0 correction to cosine of zenith angles."""
+                     night_to_zero : bool,
+                     mu_horizon : float = 1.e-10) -> NumberOrArray:
+    """
+    Applies corrections to cosine of zenith angles for two distinct purposes:
+    1. Avoid numerical issues close to the horizon. This is identified by those values of mu_in that are smaller than mu_horizon.
+    2. Optionally set values below the horizon to a finite, computationally safe value for usage in flux spreading.
+
+    Parameters
+    ----------
+    mu_in : NumberOrArray
+        Cosine of the zenith angle.
+    night_to_zero : bool
+        If True, set values below the horizon to zero.
+    mu_horizon : float, optional
+        Threshold for identifying values close to the horizon. Default is 1.e-10.
+
+    Returns
+    -------
+    NumberOrArray
+        Corrected cosine of the zenith angle.
+    """
     rrae = 0.1277 * 1.0e-2
     zcrae = rrae * (rrae + 2)
 
@@ -338,11 +500,11 @@ def zamu0_correction(mu_in : NumberOrArray,
 
     # Originally 1.e-10
     # (but maybe too small if single precision is used?)
-    mu_mask = mu_in > 1.0e-10
-    
+    mu_mask = mu_in > mu_horizon
+
     above_horizon = rrae / (np.sqrt(mu_in**2 + zcrae) - mu_in)
     below_horizon = 0. if night_to_zero else rrae / np.sqrt(zcrae)
-    
+
     if not mu_is_xr:
         mu = np.where(
             mu_mask,
@@ -363,33 +525,61 @@ def zamu0_correction(mu_in : NumberOrArray,
 
     return mu
 
-def sat_azimuthrad_rad(sat_phi : NumberOrArray, sat_lam : NumberOrArray,
-                    phi: NumberOrArray, lam: NumberOrArray) -> NumberOrArray:
+def sat_azimuthrad_rad(
+        sat_phi : NumberOrArray,
+        sat_lam : NumberOrArray,
+        phi: NumberOrArray,
+        lam: NumberOrArray
+    ) -> NumberOrArray:
     """Satellite azimuth angle (radians) (radians input)
+
     Parameters
     ----------
-    _phi : float | np.ndarray
-        Latitude (radians).
-    _lam : float | np.ndarray
-        Longitude (radians). 
-    sat_phi and sat_lam must have the same shape (position)
+    sat_phi : NumberOrArray
+        Satellite latitude (radians).
+    sat_lam : NumberOrArray
+        Satellite longitude (radians).
+    phi : NumberOrArray
+        Observed latitude (radians).
+    lam: NumberOrArray
+        Observed longitude (radians).
+
+    Returns
+    -------
+    NumberOrArray
+        Satellite azimuth angle (radians).
     """
     if np.shape(sat_phi) != np.shape(sat_lam):
         raise ValueError("sat_phi and sat_lam must have the same shape")
-    
+
     dlam = sat_lam - lam
     return np.atan2(np.sin(dlam), np.cos(phi)*np.tan(sat_phi) - np.sin(phi)*np.cos(dlam))
 
-def sat_azimuthrad_deg(sat_phi : NumberOrArray, sat_lam : NumberOrArray,
-                    phi: NumberOrArray, lam: NumberOrArray,
-                    zamu0 : bool = True) -> NumberOrArray:
+def sat_azimuthrad_deg(
+        sat_phi : NumberOrArray,
+        sat_lam : NumberOrArray,
+        phi: NumberOrArray,
+        lam: NumberOrArray,
+        zamu0 : bool = True
+        ) -> NumberOrArray:
     """Satellite azimuth angle (radians) (degrees input)
-    Parameters    ----------
-    _phi : float | np.ndarray
+
+    Parameters
+    ----------
+    phi : NumberOrArray
         Latitude (degrees).
-    _lam : float | np.ndarray
-        Longitude (degrees). 
+    lam : NumberOrArray
+        Longitude (degrees).
+    sat_phi : NumberOrArray
+        Satellite latitude (degrees).
+    sat_lam : NumberOrArray
+        Satellite longitude (degrees).
     sat_phi and sat_lam must have the same shape (position)
+
+    Returns
+    -------
+    NumberOrArray
+        Satellite azimuth angle (radians).
     """
 
     return sat_azimuthrad_rad(np.deg2rad(sat_phi), np.deg2rad(sat_lam),
@@ -397,33 +587,47 @@ def sat_azimuthrad_deg(sat_phi : NumberOrArray, sat_lam : NumberOrArray,
 
 def sat_azimuthdeg_deg(sat_phi : NumberOrArray, sat_lam : NumberOrArray,
                        phi: NumberOrArray, lam: NumberOrArray,) -> NumberOrArray:
-    """Satellite azimuth angle (degrees) (degrees input)
+    """Satellite azimuth angle (degrees) (degrees input). sat_phi and sat_lam must have the same shape (position).
+
     Parameters
     ----------
-    _phi : float | np.ndarray
+    sat_phi : NumberOrArray
+        Satellite latitude (degrees).
+    sat_lam : NumberOrArray
+        Satellite longitude (degrees).
+    phi : NumberOrArray
         Latitude (degrees).
-    _lam : float | np.ndarray
-        Longitude (degrees). 
-    sat_phi and sat_lam must have the same shape (position)
+    lam : NumberOrArray
+        Longitude (degrees).
+
+    Returns
+    -------
+    NumberOrArray
+        Satellite azimuth angle (degrees).
     """
     return np.mod(np.rad2deg(sat_azimuthrad_deg(sat_phi, sat_lam, phi, lam)), 360.0)
-    
+
 def cos_satza_rad(sat_phi : NumberOrArray, sat_lam : NumberOrArray,
                   phi: NumberOrArray, lam: NumberOrArray,
                   sat_alt_m: float = 35_786.e3,
                   zamu0: bool = True
                   ) -> NumberOrArray:
     """Cosine of the satellite zenith angle (radians input)
+
     Parameters
     ----------
-    _phi : float | np.ndarray
+    phi : NumberOrArray
         Latitude (radians).
-    _lam : float | np.ndarray
-        Longitude (radians). 
+    lam : NumberOrArray
+        Longitude (radians).
     sat_phi and sat_lam must have the same shape (position)
-
     zamu0: bool (default True)
         If True, apply the "zamu0" correction to the cosine of SZA. It prevents too-close-to-zero values
+
+    Returns
+    -------
+    NumberOrArray
+        Cosine of the satellite zenith angle.
     """
 
     re = 6371.0e3
@@ -450,16 +654,22 @@ def cos_satza_deg(sat_phi : NumberOrArray, sat_lam : NumberOrArray,
                   zamu0: bool = True
                   ) -> NumberOrArray:
     """Cosine of SATZA (degrees input).
+
     Parameters
     ----------
-    _phi : float | np.ndarray
+    phi : NumberOrArray
         Latitude (degrees).
-    _lam : float | np.ndarray
-        Longitude (degrees). 
+    lam : NumberOrArray
+        Longitude (degrees).
     sat_phi and sat_lam must have the same shape (position)
 
     zamu0: bool (default True)
         If True, apply the "zamu0" correction to the cosine of SZA. It prevents too-close-to-zero values
+
+    Returns
+    -------
+    NumberOrArray
+        Cosine of the satellite zenith angle.
     """
     return cos_satza_rad(sat_phi = np.deg2rad(sat_phi), sat_lam = np.deg2rad(sat_lam),
                          phi = np.deg2rad(phi), lam = np.deg2rad(lam),

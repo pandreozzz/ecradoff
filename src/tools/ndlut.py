@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 from enum import Enum
 
-from ..main.types import FLOAT_DTYPE
+from main.types import FLOAT_DTYPE
 
 import numpy as np
 import xarray as xr
@@ -16,14 +16,23 @@ from xarray.core.coordinates import DatasetCoordinates, DataArrayCoordinates
 XrCoords = Union[DatasetCoordinates, DataArrayCoordinates]
 
 class LUTStruct(Enum):
-    """LUT structure types"""
+    """LUT structure types
+    EXPLODED: The LUT is not flattened, it is multi-dimensional array.
+    C_FLAT: LUT is flattened in row-major order.
+    F_FLAT: LUT is flattened in column-major order.
+    """
 
     EXPLODED = 0
     C_FLAT = 1
     F_FLAT = 2
 
 class ActivWType(Enum):
-    """LUT types"""
+    """LUT vertical velocity dimensions
+    NONE: No activation dependency on vertical velocity.
+    W_MEAN: Activation is a function of mean vertical velocity.
+    W_MEAN_STD: Activation is a function of both mean and standard deviation of vertical velocity.
+    W_STD: Activation is a function of the standard deviation of vertical velocity.
+    """
 
     NONE = 0
     W_MEAN = 1
@@ -37,7 +46,17 @@ class NdLUT:
     def __init__(self, lut_dset : xr.Dataset,
                  lut_recipes : xr.Dataset,
                  lut_map_kinds : List[str] = ["num_act"]):
-        """Setup the LUT from the given path"""
+        """Setup the LUT from the given path
+
+        Parameters
+        ----------
+        lut_dset : xr.Dataset
+            The dataset containing the LUT.
+        lut_recipes : xr.Dataset
+            The dataset containing the LUT recipes.
+        lut_map_kinds : List[str], optional
+            List of LUT map kinds to check for, by default ["num_act"]
+        """
 
         # Once finalized, the LUT should not be modified anymore
         self.frozen = False
@@ -81,8 +100,19 @@ class NdLUT:
         self.num_mas_ratio = self._infer_num_mas_ratio(self._xr_lut, lut_recipes)
 
 
-    def _check_ccn_names(self, lut_recipes : xr.Dataset):
-        """Check that the CCN names in the LUT recipes match those in the LUT dataset"""
+    def _check_ccn_names(self, lut_recipes : xr.Dataset) -> None:
+        """Check that the CCN names in the LUT recipes match those in the LUT dataset
+
+        Parameters
+        ----------
+        lut_recipes : xr.Dataset
+            The dataset containing the LUT recipes.
+
+        Raises
+        ------
+        ValueError
+            If the CCN names in the LUT recipes do not match those in the LUT dataset or if required CCN names are missing.
+        """
         assert not self.frozen
 
         if "ccn_names" not in lut_recipes:
@@ -97,7 +127,25 @@ class NdLUT:
     @staticmethod
     def _infer_num_mas_ratio(lut_dset : xr.Dataset,
                              lut_recipes : xr.Dataset) -> Dict:
-        """Get number-to-mass ratios for the aerosols"""
+        """Get number-to-mass ratios for the aerosols
+
+        Parameters
+        ----------
+        lut_dset : xr.Dataset
+            The dataset containing the LUT.
+        lut_recipes : xr.Dataset
+            The dataset containing the LUT recipes.
+
+        Returns
+        -------
+        Dict
+            A dictionary mapping aerosol names to their number-to-mass ratios.
+
+        Raises
+        ------
+        ValueError
+            If the number-to-mass ratios cannot be determined from the LUT recipes or dataset.
+        """
 
         from ..main.types import FLOAT_DTYPE
 
@@ -116,9 +164,24 @@ class NdLUT:
             pass
         raise ValueError("Could not find number-to-mass ratios for aerosols in LUT recipes!")
 
-    def set_activw(self, lutcoords : XrCoords):
+    def set_activw(self, lutcoords : XrCoords) -> Dict:
         """Determine the type of w-activation in the LUT based on its dimensions
         bit of a poor man detection now, might need upgrade at some point
+
+        Parameters
+        ----------
+        lutcoords : XrCoords
+            The coordinates of the LUT dataset.
+
+        Returns
+        -------
+        Dict
+            A dictionary mapping original coordinate names to their renamed versions, if any.
+
+        Raises
+        ------
+        ValueError
+            If more than one w_prime or w_std coordinate is found in the LUT dataset.
         """
         assert not self.frozen
 
@@ -150,8 +213,23 @@ class NdLUT:
 
         return renamedic
 
-    def set_lut_structure(self, lut_dset : xr.Dataset):
-        """Determine the structure of the LUT dataset"""
+    def set_lut_structure(self, lut_dset : xr.Dataset) -> None:
+        """Determine the structure of the LUT dataset
+
+        Parameters
+        ----------
+        lut_dset : xr.Dataset
+            The dataset containing the LUT.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If the LUT dataset does not conform to the expected structure.
+        """
         assert not self.frozen
 
         # Clearly flat, C or F order?
@@ -195,7 +273,24 @@ class NdLUT:
 
 
     def _unpack_recipes(self, lut_recipes : xr.Dataset) -> Dict:
-        """Unpack the LUT recipes from either adataset or a dict (JSON file)"""
+        """Unpack the LUT recipes from either adataset or a dict (JSON file)
+
+        Parameters
+        ----------
+        lut_recipes : xr.Dataset
+            The dataset containing the LUT recipes.
+
+        Returns
+        -------
+        Dict
+            A dictionary mapping CCN species to their respective recipes.
+
+        Raises
+        ------
+        ValueError
+            If there is a mismatch between the CCN names in the LUT dataset and the LUT recipes.
+
+        """
         from ..main.types import FLOAT_DTYPE
         assert not self.frozen
         """Unpacks recipes and checks aero-CCN name consistency with LUT maps"""
@@ -239,24 +334,42 @@ class NdLUT:
         return recipes
 
     # Getters for dimensions and shapes
-    def get_expl_dims(self):
-        """Get the exploded lut dimensions"""
+    def get_expl_dims(self) -> Tuple[str, ...]:
+        """Get the exploded lut dimensions
+
+        Returns
+        -------
+        Tuple[str, ...]
+            The exploded LUT dimensions.
+        """
         if not self.frozen:
             assert hasattr(self, "expl_xrlut_dims")
             assert self.expl_xrlut_dims is not None
             return tuple(dim[0] for dim in self.expl_xrlut_dims)
         else:
             return self.expl_lut_dims
-    def get_expl_shape(self):
-        """Get the exploded lut shape"""
+    def get_expl_shape(self) -> Tuple[int, ...]:
+        """Get the exploded lut shape
+
+        Returns
+        -------
+        Tuple[int, ...]
+            The exploded LUT shape.
+        """
         if not self.frozen:
             assert hasattr(self, "expl_xrlut_dims")
             assert self.expl_xrlut_dims is not None
             return tuple(dim[1] for dim in self.expl_xrlut_dims)
         else:
             return self.expl_lut_shape
-    def get_flat_dim(self):
-        """Get the flat lut dimensions"""
+    def get_flat_dim(self) -> str:
+        """Get the flat lut dimension
+
+        Returns
+        -------
+        str
+            The flat LUT dimension.
+        """
         if not self.frozen:
             assert hasattr(self, "flat_xrlut_dims")
             assert self.flat_xrlut_dims is not None
@@ -265,8 +378,14 @@ class NdLUT:
         else:
             assert len(self.flat_lut_dims) == 1
             return self.flat_lut_dims[0]
-    def get_flat_len(self):
-        """Get the flat lut shape"""
+    def get_flat_len(self) -> int:
+        """Get the flat lut length
+
+        Returns
+        -------
+        int
+            The flat LUT length.
+        """
 
         if not self.frozen:
             assert hasattr(self, "flat_xrlut_dims")
@@ -276,19 +395,37 @@ class NdLUT:
         else:
             assert len(self.flat_lut_shape) == 1
             return self.flat_lut_shape[0]
-    def get_lut_species_bins(self):
-        """Get the LUT species bins in the order of the exploded dimensions"""
+    def get_lut_species_bins(self) -> List:
+        """Get the LUT species bins in the order of the exploded dimensions
+
+        Returns
+        -------
+        List
+            The LUT species bins in the order of the exploded dimensions.
+        """
         return [self.lut_aero_nccn_bins[dim]
                 for dim in self.get_expl_dims()
                 if dim in self.lut_aeros]
-    def get_lut_wspeeds_bins(self):
-        """Get the LUT wspeeds bins in the order of the exploded dimensions"""
+    def get_lut_wspeeds_bins(self) -> List:
+        """Get the LUT wspeeds bins in the order of the exploded dimensions
+
+        Returns
+        -------
+        List
+            The LUT wspeeds bins in the order of the exploded dimensions.
+        """
         return [self.lut_wspeeds_bins[dim]
                 for dim in self.get_expl_dims()
                 if dim in self.lut_wspeeds_bins]
 
     def _get_xr_lut_exploded(self) -> xr.Dataset:
-        """Converts the given xr.Dataset to the target structure"""
+        """Converts the given xr.Dataset to the target structure
+
+        Returns
+        -------
+        xr.Dataset
+            The xr.Dataset converted to the target structure.
+        """
         if self._xr_struct == LUTStruct.EXPLODED:
             return self._xr_lut
 
@@ -302,6 +439,20 @@ class NdLUT:
 
     def finalize(self, represented_aeros : List[str],
                  lut_sel : List[str] = ["num_act"]) -> List[str]:
+        """Finalize the LUT by removing unrepresented aerosol and deactivating empty CCN.
+
+        Parameters
+        ----------
+        represented_aeros : List[str]
+            The list of aeros that are represented.
+        lut_sel : List[str], optional
+            The list of LUT selections, by default ["num_act"]
+
+        Returns
+        -------
+        List[str]
+            The list of remaining represented aeros after finalization.
+        """
         assert not self.frozen
         # extract subset of LUT
         # convert_lut_structure to flat
@@ -387,6 +538,17 @@ class LUTAerosol:
     def __init__(self,
                  aerosol_mcon_fields : Union[xr.Dataset, Dict[str, xr.DataArray]],
                  ndlut : NdLUT, flat_order : str = "C"):
+        """Initialize the LUTAerosol instance.
+
+        Parameters
+        ----------
+        aerosol_mcon_fields : Union[xr.Dataset, Dict[str, xr.DataArray]]
+            The aerosol mixing ratio fields.
+        ndlut : NdLUT
+            The NdLUT instance to use for calculations.
+        flat_order : str, optional
+            The order to flatten arrays, by default "C".
+        """
 
         from ..aerodefs.bucket import AEROCAMSBUCKET, AeroDesc
 
@@ -410,6 +572,13 @@ class LUTAerosol:
                       ", ".join(self.aero_vars))
 
     def _get_ccn_ncon(self) -> np.ndarray:
+        """Compute the CCN and Ncon for all species.
+
+        Returns
+        -------
+        np.ndarray
+            The computed CCN and Ncon values for all species, flattened according to the specified order.
+        """
         assert self.ndlut.frozen
 
         flat_order = None
@@ -448,8 +617,14 @@ class LUTAerosol:
 
 
 
-    def _get_ccn_ncon_species(self, lut_aero : str):
-        """Compute the CCN species by applying recipe"""
+    def _get_ccn_ncon_species(self, lut_aero : str) -> xr.DataArray:
+        """Compute the CCN species by applying recipe
+
+        Returns
+        -------
+        xr.DataArray
+            The computed CCN values for the specified species.
+        """
         if lut_aero not in self.ndlut.recipes:
             raise ValueError(f"CCN {lut_aero} not found in LUT recipes!")
         else:
@@ -465,8 +640,27 @@ class LUTAerosol:
     def compute_nd(self,
                    w_mean : Optional[xr.DataArray] = None,
                    w_std : Optional[xr.DataArray] = None,
-                   map_kind : str = "num_act"):
-        """w_mean and w_std if given must have the same dimensions as the aerosol fields"""
+                   map_kind : str = "num_act") -> np.ndarray:
+        """
+        Compute cloud droplet number concentrations (Ns)
+        Parameters
+        ----------
+        w_mean : Optional[xr.DataArray], optional
+            The mean vertical velocity, by default None.
+        w_std : Optional[xr.DataArray], optional
+            The standard deviation of the vertical velocity, by default None.
+        map_kind : str, optional
+            The kind of LUT map to use, by default "num_act".
+
+        Notes
+        -----
+        w_mean and w_std if given must have the same dimensions as the aerosol fields
+
+        Returns
+        -------
+        np.ndarray
+            The computed number distribution, flattened according to the specified order.
+        """
         from ..interp.interface import get_lutvals
 
         required_lut_maps = [f"{aero}_{map_kind}" for aero in self.ndlut.lut_aeros]

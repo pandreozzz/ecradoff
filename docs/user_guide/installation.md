@@ -1,0 +1,96 @@
+# Installation
+
+ecRadOff is configured with several submodules dependencies, that allow version pinpointing to ensure reproducibility and compatibility. In addition to those, some native Fortran libraries are required and are compiled during the installation process.
+
+## Cloning the repository
+Recursing submodules is essential to ensure that all dependencies are available:
+```bash
+$ git clone --recurse-submodules git@github.com:pandreozzz/ecradoff.git
+$ cd ecradoff
+```
+The `main` branch is aligned with one of the latest stable releases of ecRad (see <https://github.com/ecmwf-ifs/ecrad/tags> for available tags) and corresponds to the most recent available offline version of the ECMWF atmospheric radiation scheme.
+
+### FLOTSAM
+A branch of the ecRadOff repository is dedicated to the FLOTSAM version of ecRad. This is used for the simulation of satellite spectral reflectances and radiances and requires additional dependencies that are configured as submodules as well and include FLOTSAM, the "Forward-Lobe Two-Stream Radiance Model" as well as the ADEPT-2 library.
+
+If you want to switch to the FLOTSAM branch:
+```bash
+$ git checkout flotsam
+```
+
+
+### Submodule recursion
+
+After checking out the branch, make sure all submodules are updated:
+```bash
+$ git submodule update --init --recursive
+```
+
+Alternatively, to avoid manually updating submodules each time, you can optionally set the local config to automatically recurse submodules:
+```bash
+$ git config submodule.recurse true
+```
+
+## Dependencies and python installation
+
+It is recommended to setup a Python virtual environment before proceeding:
+
+```bash
+$ python3 -m venv .venv
+$ source .venv/bin/activate
+```
+
+At this point, proceed with the installation. This will handle all Python dependencies, but some system dependencies may still need to be installed manually. Check out the requirements for the required system dependencies in the `docs/user_guide/system_dependencies.md` file.
+
+### Installation
+
+To install ecRadOff and its Python dependencies:
+```bash
+$ pip install -e .
+```
+This will call the `setup.py` script, compile and install all submodule dependencies as well as the native ecRadOff libraries. Once the Python dependencies are installated, the `setup.py` can also be invoked directly to recompile and reinstall all required libraries. A possible use case is the usage of debugging flags or switching float precision settings, for example:
+
+```bash
+$ python setup.py clean
+$ ECRAD_SP=1 python setup.py build_ext
+```
+
+For a list of available build options:
+```bash
+$ python setup.py help
+```
+
+
+## Required support fields
+Some additional support physical fields are required by ecRad to function. Several lookup tables of aerosol, cloud hydrometeors and files containing solar irradiance values are included in the ecRad package under `ecrad/data`; advanced users can also decide to use their own versions of these files, that need one edit of the `get_tsirr_path()` function inside `src/main/config.py` as well as of the template namelist for the ecRad setup. Soon this will be made more straightforward by switching to JSON configuration files.
+
+Among the fields not included in the ecRad repository are a greenhouse gas climatology and an aerosol climatology and need to be provided by the user. These are NetCDF files and are store under the `data` directory.
+
+### Greenhouse gas climatology
+To be placed in the `data/ghg` directory, the filename must be specified accordingly into the `src/main/config.py` file, within the `CONFIGDICT_DEF` dictionary under the key `ghg_file`.
+
+```python
+CONFIGDICT_DEF = {
+    ...
+    "ghg_file": "your_ghg_file.nc",
+    ...
+}
+```
+
+To download a recent publicly available greenhouse gas climatology provided by ECMWF, you can use:
+```bash
+$ wget -q "https://confluence.ecmwf.int/download/attachments/70945505/greenhouse_gas_timeseries_CMIP6_SSP370_CFC11equiv_47r1.nc?version=1&modificationDate=1606823141142&api=v2&download=true" -O data/ghg/greenhouse_gas_timeseries_CMIP6_SSP370_CFC11equiv_47r1.nc
+```
+
+### Aerosol climatology
+
+Similarly to the greenhouse gas climatology, the aerosol climatology must be placed in the `data/aerosol` directory, and the filename must be specified accordingly into the `src/main/config.py` file, within the `CONFIGDICT_DEF` dictionary under the key `aerosol_file`.
+
+```python
+CONFIGDICT_DEF = {
+    ...
+    "cams_clim_file": "your_aerosol_file.nc",
+    ...
+}
+```
+Since IFS cycle CY47R3, the aerosol climatology consists of profiles of aerosol species represented by the IFS-COMPO system used by ECMWF within the Copernicus Atmosphere Monitoring Service (CAMS). The version of the climatology introduced by Bozzo et al. (2020) is publicly available and can be downloaded following the instructions in the [ecRad overview page](https://confluence.ecmwf.int/spaces/ECRAD/overview).
