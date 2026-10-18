@@ -48,7 +48,7 @@ locals/lib/%.so: src/libs/%.f90
 	$(FC) $(FCFLAGS) $(FCSHAREDFLAGS) $(CPPFLAGS) -o $@ $<
 
 $(ECRADBIN):
-	ln -s $(shell realpath --relative-to $(dir $@) ecrad/bin/ecrad) $@
+	ln -s ../../ecrad/bin/ecrad $@
 
 clean: clean-flotsam clean-adept
 	rm -f *.o $(OBJECTS)

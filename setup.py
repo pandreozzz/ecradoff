@@ -8,7 +8,7 @@ ECRAD_SP: precision for ecrad. default is double. With ecrad flotsam sp build fa
 """
 
 
-from setuptools import setup
+from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import subprocess
 import os
@@ -103,7 +103,8 @@ class BuildExt(build_ext):
         print(f"stdout and stderr put into {out_file} and {err_file}.")
 
     def _easy_logged_run(self, cmd : Union[str, List[str]], log_dir : str,
-                         label : str, message : str, shell : bool = False):
+                         label : str, message : str, shell : bool = False,
+                         cwd : Optional[str] = None):
         """Just wrap cmd run and logging"""
         if type(cmd) == str:
             cmd_str = cmd
@@ -113,7 +114,7 @@ class BuildExt(build_ext):
             cmd_str = ' '.join(cmd)
         import subprocess
         print(f"Running {message}:\n\t{cmd_str}\n")
-        result = subprocess.run(cmd, shell=shell, capture_output=True, text=True)
+        result = subprocess.run(cmd, shell=shell, capture_output=True, text=True, cwd=cwd)
         self._write_cmd_logs(log_dir, result.stdout, result.stderr, label=label)
         if result.returncode != 0:
             print(result.stderr)
@@ -264,9 +265,14 @@ class BuildExt(build_ext):
 
         if not os.path.exists(os.path.join(adept2_path, "Makefile")):
             # First autoreconf
-            cmd_ar = ["autoreconf",'-i', '-f', adept2_path]
-            self._easy_logged_run(cmd_ar, log_dir=LOGS_DIR,
-                                  label="adept2_autoreconf", message="Adept2 autoreconf")
+            cmd_ar = ["autoreconf",'-i', '-f']
+            self._easy_logged_run(
+                cmd_ar,
+                log_dir=LOGS_DIR,
+                label="adept2_autoreconf",
+                message="Adept2 autoreconf",
+                cwd=adept2_path
+                )
 
 
             # Configure
@@ -275,7 +281,7 @@ class BuildExt(build_ext):
                 cxxflags = "-g -O0"
             else:
                 cxxflags = "-O0"
-            cxxflags = cxxflags + "-Wall -march=native"
+            cxxflags = cxxflags + " -Wall -march=native"
 
             cmd_cf = cmd_cf + f" CXXFLAGS='{cxxflags}'"
 
@@ -311,7 +317,7 @@ class BuildExt(build_ext):
         # Install
         cmd_install = ['make', '-C', adept2_path, 'install']
         self._easy_logged_run(cmd_install, log_dir=LOGS_DIR,
-                              label="adept2_install", message="Adept2 install")
+                              label="adept2_install", message="Adept2 install", cwd=adept2_path)
 
 
     def _build_flotsam(self, flotsam_path, adept2_dir : str,
@@ -337,13 +343,15 @@ class BuildExt(build_ext):
 
         if not os.path.exists(os.path.join(flotsam_path, "Makefile")):
             # Autoreconf
-            cmd_ar = ['autoreconf', '-i', '-f', flotsam_path]
+            cmd_ar = ['autoreconf', '-i', '-f']
             self._easy_logged_run(cmd_ar, log_dir=LOGS_DIR,
-                                  label="flotsam_autoreconf", message="Flotsam autoreconf")
+                                  label="flotsam_autoreconf",
+                                  message="Flotsam autoreconf",
+                                  cwd=flotsam_path)
 
             # configure
 
-            # CC, CXX, CPPFLAGS and CXXFLAGS
+            # CC, CXX, CPPFLAS
             # TODO: make these environment-dependent
             cxx = "g++"
             cc = "gcc"
@@ -422,6 +430,9 @@ setup(
     version='0.1.0',
     description='ECRad radiation scheme with interpolation utilities',
     packages=['src'],
+    ext_modules=[
+        Extension('ecradoff_native', sources=[])
+    ],
     cmdclass={
         'build_ext': BuildExt,
         'clean': CleanBuildExt,
