@@ -18,7 +18,7 @@ from typing import Optional, List, Union
 
 # Global switches
 # do not touch!
-USE_FLOTSAM = False
+from flotsam_switch import USE_FLOTSAM
 
 # All absolute paths
 
