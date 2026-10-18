@@ -18,7 +18,6 @@ from typing import Optional, List, Union
 
 # Global switches
 # do not touch!
-from flotsam_switch import USE_FLOTSAM
 
 # All absolute paths
 
@@ -46,6 +45,10 @@ ECRAD_SRC_DIR = os.path.join(
     ROOT_DIR,
     "ecrad"
 )
+
+# Is this a FLOTSAM installation?
+with open(os.path.join(ROOT_DIR, "flotsam_switch")) as f:
+    USE_FLOTSAM = f.read().strip().lower() == "true"
 
 def prGreen(s): print("\033[92m {}\033[00m".format(s))
 
