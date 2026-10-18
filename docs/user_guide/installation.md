@@ -48,7 +48,7 @@ To install ecRadOff and its Python dependencies:
 ```bash
 $ pip install -v -e .
 ```
-This will call the `setup.py` script, compile and install all submodule dependencies as well as the native ecRadOff libraries. Once the Python dependencies are installated, the `setup.py` can also be invoked directly to recompile and reinstall all required libraries. A possible use case is the usage of debugging flags or switching float precision settings, for example:
+This will call the `setup.py` script, compile and install all submodule dependencies as well as the native ecRadOff libraries. Once the Python dependencies are installed, the `setup.py` can also be invoked directly to recompile and reinstall all required libraries. A possible use case is the usage of debugging flags or switching float precision settings, for example:
 
 ```bash
 $ python setup.py clean
@@ -67,6 +67,13 @@ You will need a BLAS/LAPACK library and pass the environment variable `BLAS_LIB`
 $ BLAS_LIB=openblas pip install -v -e .
 ```
 
+To switch between main and flotsam branches:
+```bash
+$ python setup.py clean
+$ git checkout flotsam
+$ git submodule update --init --recursive
+$ BLAS_LIB=openblas pip install -v -e .
+```
 
 ## Required support fields
 Some additional support physical fields are required by ecRad to function. Several lookup tables of aerosol, cloud hydrometeors and files containing solar irradiance values are included in the ecRad package under `ecrad/data`; advanced users can also decide to use their own versions of these files, that need one edit of the `get_tsirr_path()` function inside `src/main/config.py` as well as of the template namelist for the ecRad setup. Soon this will be made more straightforward by switching to JSON configuration files.
