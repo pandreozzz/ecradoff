@@ -85,7 +85,6 @@ def clean_all_src_dirs():
 class CleanBuildExt(build_ext):
     def run(self):
         clean_all_src_dirs()
-        super().run()
 
 class BuildExt(build_ext):
     """Custom build that compiles ecrad and libs/src Fortran extensions"""
