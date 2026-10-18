@@ -46,7 +46,7 @@ At this point, proceed with the installation. This will handle all Python depend
 
 To install ecRadOff and its Python dependencies:
 ```bash
-$ pip install -e .
+$ pip install -v -e .
 ```
 This will call the `setup.py` script, compile and install all submodule dependencies as well as the native ecRadOff libraries. Once the Python dependencies are installated, the `setup.py` can also be invoked directly to recompile and reinstall all required libraries. A possible use case is the usage of debugging flags or switching float precision settings, for example:
 
@@ -58,6 +58,13 @@ $ ECRAD_SP=1 python setup.py build_ext
 For a list of available build options:
 ```bash
 $ python setup.py help
+```
+
+#### FLOTSAM
+You will need a BLAS/LAPACK library and pass the environment variable `BLAS_LIB` e.g.:
+
+```bash
+$ BLAS_LIB=openblas pip install -v -e .
 ```
 
 
