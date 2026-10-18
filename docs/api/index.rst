@@ -1,7 +1,7 @@
 API Reference
 =============
 
-A number of public API are available for use in ecRadOff. These are used as building blocks for custom scripts.
+Several public APIs are available for use in ecRadOff. These are used as building blocks for custom scripts.
 
 .. toctree::
     :maxdepth: 2
@@ -9,3 +9,5 @@ A number of public API are available for use in ecRadOff. These are used as buil
     interpolation
     lut
     eot
+    ifs
+    stack

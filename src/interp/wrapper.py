@@ -335,6 +335,15 @@ class GriddedProfile():
                  ):
         """Wrapper for Dataset to use GriddedData tools
         profile_data must contain profile_coord as a data variable
+
+        Parameters
+        ----------
+        profile : xr.Dataset or GriddedArray
+            The input profile dataset or gridded array.
+        profile_coord : str, optional
+            The coordinate representing the profile, default is "pressure".
+        lev_dim : str, optional
+            The name of the vertical level dimension, default is "lev".
         """
 
         if isinstance(profile, GriddedArray):
@@ -369,7 +378,30 @@ class GriddedProfile():
                     verbose : bool = False,
                     out_chunks : Optional[dict] = None,
                     **interp_kwargs) -> GriddedProfile:
-        """Interpolate profile to target grid and to target pressure"""
+        """Interpolate profile to target grid and to target pressure
+
+        Parameters
+        ----------
+        ptgt : xr.DataArray
+            The target pressure levels for vertical interpolation.
+        tgt_coords : XRCoords, optional
+            The target horizontal grid coordinates, by default None.
+        tgt_datadims : List of str, optional
+            The data dimensions corresponding to the target grid, by default None.
+        lev_dim_tgt : str, optional
+            The name of the vertical level dimension in the target, by default None.
+        verbose : bool, optional
+            If True, print progress messages, by default False.
+        out_chunks : dict, optional
+            Chunking for the output, by default None.
+        **interp_kwargs
+            Additional keyword arguments passed to the interpolation functions.
+
+        Returns
+        -------
+        GriddedProfile
+            The interpolated gridded profile.
+        """
 
         # Check if ptgt and tgt_coords are consistent and check if tgt_coords has grid info. If not, just do vertical interpolation.
         if tgt_coords is not None:
@@ -399,8 +431,8 @@ class GriddedProfile():
             ptgt=ptgt,
             lev_dim_tgt=lev_dim_tgt,
             vert_kwargs=interp_kwargs,
-            interp_kwargs=interp_kwargs,
             out_chunks=out_chunks,
+            **interp_kwargs
         )
         return GriddedProfile(
             profile=profile_interp3d.profile,
@@ -414,6 +446,22 @@ class GriddedProfile():
                     **interp_kwargs) -> GriddedProfile:
         """Interpolate profile to target grid and return interpolated GriddedProfile.
         interp_kwargs passed directly to interp2d
+
+        Parameters
+        ----------
+        tgt_grid : XRCoords
+            The target horizontal grid coordinates.
+        tgt_datadims : List[str], optional
+            The data dimensions corresponding to the target grid, by default None.
+        verbose : bool, optional
+            If True, print progress messages, by default False.
+        **interp_kwargs
+            Additional keyword arguments passed to the interpolation function.
+
+        Returns
+        -------
+        GriddedProfile
+            The interpolated gridded profile.
         """
         return GriddedProfile(
             profile=self.profile.interp2d_to(
@@ -429,10 +477,29 @@ class GriddedProfile():
     def interpvert_to(self, ptgt : xr.DataArray,
                       lev_dim_tgt : Optional[str] = None,
                       vert_kwargs : dict = {},
-                      interp_kwargs : dict = {},
-                      out_chunks : Optional[dict] = None
+                      out_chunks : Optional[dict] = None,
+                      **interp_kwargs,
                       ) -> GriddedProfile:
-        """Interpolate to target pressure levels."""
+        """Interpolate to target pressure levels.
+
+        Parameters
+        ----------
+        ptgt : xr.DataArray
+            The target pressure levels.
+        lev_dim_tgt : str, optional
+            The name of the vertical dimension in the target, default is None.
+        vert_kwargs : dict, optional
+            Additional keyword arguments for vertical interpolation, default is {}.
+        out_chunks : dict, optional
+            Chunking for the output, default is None.
+        interp_kwargs : dict, optional
+            Additional keyword arguments for the interpolation function, default is {}.
+
+        Returns
+        -------
+        GriddedProfile
+            The interpolated gridded profile.
+        """
         from .verticals import ProfileData, InterpWeights
         from ..tools.stack import tools_to_stack_xarrays
 

@@ -220,5 +220,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# MacOS junk
+.DS_Store
+
+# Logs directory
+./logs/
+
 # Fortran builds
 *.mod

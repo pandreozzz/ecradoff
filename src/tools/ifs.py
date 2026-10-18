@@ -6,7 +6,7 @@ from typing import Optional, Union
 import numpy as np
 import xarray as xr
 
-from ..main.types import FLOAT_DTYPE
+from main.types import FLOAT_DTYPE
 
 # Magic constants
 RNAVO = 6.0221367E+23
@@ -19,7 +19,21 @@ GCNST = 9.81 # m/s2
 CPAIR = 1004.5 # J/Kg/K
 
 def pick_level(da : xr.DataArray, levsel : xr.DataArray, lev_dim : str = "lev") -> xr.DataArray:
-    """Pick values from da at levsel. Uses numpy instead of isel
+    """Pick values from the DataArray da at levsel. Uses numpy instead of isel for speedup.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The input DataArray from which to pick values.
+    levsel : xr.DataArray
+        The levels to select from da.
+    lev_dim : str, optional
+        The name of the level dimension in da, default "lev"
+
+    Returns
+    -------
+    xr.DataArray
+        The DataArray with values picked at the specified levels.
     """
 
     # Expected dims after removing lev
@@ -80,14 +94,36 @@ def compute_ndlut(model_fields : xr.Dataset,
                   lut_dset : Optional[xr.Dataset] = None,
                   lut_recipes : Optional[xr.Dataset] = None,
                   deardorff_factor : float = 0.6,
-                  w_mean_required : bool = True,
-                  w_std_required : bool = True,
                   nlev_below : Optional[int] = None,
                   lwp_frac_threshold : float = 0.98,
                   lev_nan : int = 0
                   ) -> xr.DataArray:
     """
     Compute Nd from aerosol mmr fields using the NDLUT.
+
+    Parameters
+    ----------
+    model_fields : xr.Dataset
+        The model fields containing pressure, temperature, cloud liquid water content, and boundary layer height.
+    aerosol_mmr : xr.DataArray
+        The aerosol mass mixing ratio.
+    lut_dset : Optional[xr.Dataset], optional
+        The lookup table dataset, by default None.
+    lut_recipes : Optional[xr.Dataset], optional
+        The lookup table recipes dataset, by default None.
+    deardorff_factor : float, optional
+        The Deardorff factor, by default 0.6.
+    nlev_below : Optional[int], optional
+        The number of levels below cloud base to consider, by default None.
+    lwp_frac_threshold : float, optional
+        The liquid water path fraction threshold, by default 0.98.
+    lev_nan : int, optional
+        The value to use for missing levels, by default 0.
+
+    Returns
+    -------
+    xr.DataArray
+        The computed number distribution as an xarray DataArray.
     """
 
     from ..main.config import get_ndlut_path, get_ndlut_rec_path
@@ -236,17 +272,24 @@ def get_cloud_level(lwc : xr.DataArray, nlev_below : int = 0,
     or any level in between.
     Does not discern multiple cloud layers.
 
-    Args
-    ------
-    lwc:
+    Parameters
+    ----------
+    lwc : xr.DataArray
         cloud liquid water content profile (normally clwc * rho_air)
-    nlev_below:
+    nlev_below : int
         number of offset level from threshold level
         (positive means go below, negative means go above)
-    lwp_frac_threshold:
+    lwp_frac_threshold : float
         fraction of LWP to identify the "cloud level"
-    lev_nan:
+    lev_nan : float
         value for no clouds (0 is default, nan do not exist for integers)
+    lev_dim : str
+        name of the level dimension in the lwc DataArray, by default "lev"
+
+    Returns
+    -------
+    xr.DataArray
+        The cloud level index inside the cloud profile at the required fraction of LWP.
 
     """
 
@@ -270,7 +313,24 @@ def compute_ice_reff_ifs(dset, lats = None, default_re : float = 10.,
                          max_diameter : float = 155,
                          min_diameter : Optional[float] = None):
     """
-    Reproduced computations of the ice effective radius as in IFS (RADIP = 3)
+    Reproduced computations of the ice effective radius as in IFS (RADIP = 3).
+    The parametrization has a latitude-dependency that is here reproduced.
+
+    Parameters
+    ----------
+    dset : xarray.Dataset
+        Input dataset containing the necessary fields.
+    lats : xarray.DataArray, optional
+        Latitude coordinates, by default None.
+    default_re : float, optional
+        Default ice effective radius, by default 10.
+    max_diameter : float, optional
+        Maximum ice particle diameter, by default 155.
+    min_diameter : float, optional
+        Minimum ice particle diameter, by default None.
+
+    Notes
+    -----
     dset xarray.Dataset : must contain the following fields:
                           * cc         -> grid-point cloud cover
                           * ciwc, cswc -> cloud ice/snow water content
@@ -278,7 +338,7 @@ def compute_ice_reff_ifs(dset, lats = None, default_re : float = 10.,
                           * p          -> full-level pressure
                           * t          -> full-level temperature
 
-    Returns:
+    Returns
     --------
     xarray.DataArray "re_ice" containing ice effective radius in micrometers.
     """
@@ -291,7 +351,7 @@ def compute_ice_reff_ifs(dset, lats = None, default_re : float = 10.,
         elif "lat" in dset.coords:
             lats = dset.lat
         else:
-            raise ValueError(f"Error in compute_ice_reff_ifs: could not finde latitude coords in dset!")
+            raise ValueError(f"Error in compute_ice_reff_ifs: could not find latitude coords in dset!")
 
     rtt = 273.15
 
@@ -323,8 +383,20 @@ def compute_ice_reff_ifs(dset, lats = None, default_re : float = 10.,
 
 def compute_ccn_ifs(ws :xr.DataArray, lsm : xr.DataArray):
     """
-    Ws : absolute 10m wind speed
-    lsm : land-sea mask
+    The IFS wind-dependent parametrization for cloud condensation nuclei (CCN) concentration,
+    returning a diagnostic value for in-cloud droplet number concentration (Nd)
+
+    Parameters
+    ----------
+    ws : xarray.DataArray
+        Absolute 10m wind speed.
+    lsm : xarray.DataArray
+        Land-sea mask.
+
+    Returns
+    -------
+    xarray.DataArray
+        Cloud condensation nuclei (CCN) concentration.
     """
     landmask = lsm > 0.5
     #seamask  = np.logical_not(landmask)
@@ -353,6 +425,34 @@ def compute_liquid_reff(dset, nd_fields, wood_correction : bool = True,
                         spectr_disp_land : float = 0.69, spectr_disp_sea : float = 0.77):
     """
     Reproduced computation of the liquid effective radius as in IFS (RADLP = 2)
+
+    Parameters
+    ----------
+    dset : xarray.Dataset
+        Input dataset containing the necessary fields.
+    nd_fields : list of str
+        List of field names corresponding to cloud droplet number concentration.
+    wood_correction : bool, optional
+        Whether to apply the correction after Wood 2000, default True.
+    use_rwc : bool, optional
+        Whether to use rain water content, default False.
+    min_reff : float, optional
+        Minimum effective radius, default 4.
+    max_reff : float, optional
+        Maximum effective radius, default 30.
+    cle_reff : float, optional
+        Cloud effective radius, default 2.
+    min_nd : float, optional
+        Minimum cloud droplet number concentration, default 1.
+    max_nd : float, optional
+        Maximum cloud droplet number concentration, default 3000.
+    spectr_disp_land : float, optional
+        Spectral dispersion over land, default 0.69.
+    spectr_disp_sea : float, optional
+        Spectral dispersion over sea, default 0.77.
+
+    Notes
+    -----
     dset xarray.Dataset : must contain the following fields:
                           * cc         -> grid-point cloud cover
                           * clwc, crwc -> cloud liquid/rain water content
@@ -360,9 +460,10 @@ def compute_liquid_reff(dset, nd_fields, wood_correction : bool = True,
                           * p          -> full-level pressure
                           * t          -> full-level temperature
 
-    Returns:
+    Returns
     --------
-    xarray.DataArray "re_liquid" containing liquid effective radius in micrometers.
+    xarray.DataArray
+        liquid effective radius in micrometers.
     """
 
     # Global IFS variables STILL TO FILL
@@ -451,7 +552,18 @@ def compute_liquid_reff(dset, nd_fields, wood_correction : bool = True,
     return reff_out
 
 def compute_sp_from_lnsp(lsnp : xr.DataArray) -> xr.DataArray:
-    """Compute surface pressure from its logarithm."""
+    """Compute surface pressure from its logarithm.
+
+    Parameters
+    ----------
+    lsnp : xarray.DataArray
+        Logarithm of the surface pressure.
+
+    Returns
+    -------
+    xarray.DataArray
+        Surface pressure in Pascals.
+    """
     new_attrs = lsnp.attrs.copy()
     new_attrs["long_name"] = "Surface pressure"
     new_attrs["units"] = "Pa"
@@ -470,14 +582,25 @@ def populate_mlfields(ds : xr.Dataset, keep_p_half : bool = True,
     Calculates pressure, half-level pressure, air density, and layer pressure
     difference from IFS hybrid coordinate coefficients and surface pressure.
 
-    Args:
-        ds: xarray Dataset - Must contain sp, hybm, hyam, hybi, hyai, t
-        keep_p_half: should p_half (needed for computing p at full levels) be kept?
-    Returns:
-        None (modifies dataset in place)
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Must contain sp, hybm, hyam, hybi, hyai, t
+    keep_p_half : bool, optional
+        Should p_half (needed for computing p at full levels) be kept? Default is True.
 
-    Side Effects:
-        Adds variables to dataset: p, p_half, rho_air, dp
+    Returns
+    -------
+    None
+        Modifies dataset in place.
+
+    Notes
+    -----
+    The following variables are added to the dataset:
+        - p : Full-level pressure
+        - p_half : Half-level pressure
+        - rho_air : Air density
+        - dp : Layer pressure difference
     """
 
     # check variables needed for computation are present
@@ -531,8 +654,27 @@ def compute_hl_temperature(
     half_lev_dim: str = "half_lev",
 ):
     """
-    Compute half-level temperature using a vectorized formulation with no in-place writes.
-    This avoids repeated label-based selections and xarray assignment overhead.
+    Compute half-level temperature from full-level temperatures and pressures.
+
+    Parameters
+    ----------
+    p_half : xarray.DataArray
+        Half-level pressures.
+    p_full : xarray.DataArray
+        Full-level pressures.
+    t_full : xarray.DataArray
+        Full-level temperatures.
+    skt_sfc : xarray.DataArray
+        Surface skin temperature.
+    lev_dim : str, optional
+        Name of the full-level dimension. Default is "lev".
+    half_lev_dim : str, optional
+        Name of the half-level dimension. Default is "half_lev".
+
+    Returns
+    -------
+    xarray.DataArray
+        Half-level temperatures.
     """
 
     # Put all 3D fields in a common order with level last for simpler slicing/alignment.

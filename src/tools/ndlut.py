@@ -17,9 +17,10 @@ XrCoords = Union[DatasetCoordinates, DataArrayCoordinates]
 
 class LUTStruct(Enum):
     """LUT structure types
-    EXPLODED: The LUT is not flattened, it is multi-dimensional array.
-    C_FLAT: LUT is flattened in row-major order.
-    F_FLAT: LUT is flattened in column-major order.
+
+    - EXPLODED: The LUT is not flattened, it is multi-dimensional array.
+    - C_FLAT: LUT is flattened in row-major order.
+    - F_FLAT: LUT is flattened in column-major order.
     """
 
     EXPLODED = 0
@@ -28,10 +29,11 @@ class LUTStruct(Enum):
 
 class ActivWType(Enum):
     """LUT vertical velocity dimensions
-    NONE: No activation dependency on vertical velocity.
-    W_MEAN: Activation is a function of mean vertical velocity.
-    W_MEAN_STD: Activation is a function of both mean and standard deviation of vertical velocity.
-    W_STD: Activation is a function of the standard deviation of vertical velocity.
+
+    - NONE: No activation dependency on vertical velocity.
+    - W_MEAN: Activation is a function of mean vertical velocity.
+    - W_MEAN_STD: Activation is a function of both mean and standard deviation of vertical velocity.
+    - W_STD: Activation is a function of the standard deviation of vertical velocity.
     """
 
     NONE = 0
@@ -537,17 +539,15 @@ class LUTAerosol:
 
     def __init__(self,
                  aerosol_mcon_fields : Union[xr.Dataset, Dict[str, xr.DataArray]],
-                 ndlut : NdLUT, flat_order : str = "C"):
+                 ndlut : NdLUT):
         """Initialize the LUTAerosol instance.
 
         Parameters
         ----------
-        aerosol_mcon_fields : Union[xr.Dataset, Dict[str, xr.DataArray]]
+        aerosol_mcon_fields : xr.Dataset or Dict of str to xr.DataArray
             The aerosol mixing ratio fields.
         ndlut : NdLUT
             The NdLUT instance to use for calculations.
-        flat_order : str, optional
-            The order to flatten arrays, by default "C".
         """
 
         from ..aerodefs.bucket import AEROCAMSBUCKET, AeroDesc
@@ -572,12 +572,12 @@ class LUTAerosol:
                       ", ".join(self.aero_vars))
 
     def _get_ccn_ncon(self) -> np.ndarray:
-        """Compute the CCN and Ncon for all species.
+        """Compute the Ncon values for all CCN species.
 
         Returns
         -------
         np.ndarray
-            The computed CCN and Ncon values for all species, flattened according to the specified order.
+            The computed Ncon values for all CCN species, flattened according to the specified order.
         """
         assert self.ndlut.frozen
 
@@ -620,6 +620,11 @@ class LUTAerosol:
     def _get_ccn_ncon_species(self, lut_aero : str) -> xr.DataArray:
         """Compute the CCN species by applying recipe
 
+        Parameters
+        ----------
+        lut_aero : str
+            The name of the aerosol species for which to compute CCN.
+
         Returns
         -------
         xr.DataArray
@@ -640,26 +645,27 @@ class LUTAerosol:
     def compute_nd(self,
                    w_mean : Optional[xr.DataArray] = None,
                    w_std : Optional[xr.DataArray] = None,
-                   map_kind : str = "num_act") -> np.ndarray:
+                   map_kind : str = "num_act") -> xr.DataArray:
         """
-        Compute cloud droplet number concentrations (Ns)
+        Compute cloud droplet number concentrations (Nd)
+
         Parameters
         ----------
-        w_mean : Optional[xr.DataArray], optional
+        w_mean : xr.DataArray, optional
             The mean vertical velocity, by default None.
-        w_std : Optional[xr.DataArray], optional
+        w_std : xr.DataArray, optional
             The standard deviation of the vertical velocity, by default None.
         map_kind : str, optional
             The kind of LUT map to use, by default "num_act".
 
         Notes
         -----
-        w_mean and w_std if given must have the same dimensions as the aerosol fields
+        if w_mean and w_std are given must have the same dimensions as the aerosol fields
 
         Returns
         -------
-        np.ndarray
-            The computed number distribution, flattened according to the specified order.
+        xr.DataArray
+            The computed number distribution as an xarray DataArray.
         """
         from ..interp.interface import get_lutvals
 
