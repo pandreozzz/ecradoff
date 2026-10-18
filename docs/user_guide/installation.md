@@ -71,7 +71,7 @@ To switch between main and flotsam branches:
 ```bash
 $ python setup.py clean
 $ git checkout flotsam
-$ git submodule update --init --recursive
+$ git submodule update --init --recursive --force
 $ BLAS_LIB=openblas pip install -v -e .
 ```
 
