@@ -4,7 +4,7 @@
 	branch = flotsam
 [submodule "flotsam"]
 	path = flotsam
-	url = git@github.com:rjhogan/flotsam.git
+	url = git@github.com:pandreozzz/flotsam.git
 [submodule "Adept-2"]
 	path = Adept-2
 	url = git@github.com:rjhogan/Adept-2.git
