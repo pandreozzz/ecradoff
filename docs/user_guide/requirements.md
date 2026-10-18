@@ -9,7 +9,7 @@ A complete source build requires:
 * netCDF-Fortran
 * OpenMP support
 
-### FLOTSAM
+## FLOTSAM
 For the FLOTSAM configuration, additional requirements are:
 * GCC and G++ compilers
 * Autoconf/Automake

@@ -328,8 +328,8 @@ def get_lutvals(lut_stack : np.ndarray,
     chunksize : int, optional
         The chunk size to use for the interpolation. Default is 10000.
 
-    Returns:
-    --------
+    Returns
+    -------
     val_out_data : np.ndarray (nvals, nmaps)
         The interpolated LUT values for each field value in _fields
     """

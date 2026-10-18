@@ -7,11 +7,29 @@ from typing import Any, Dict, List, Optional, Tuple, Union, NamedTuple, Literal
 import numpy as np
 import xarray as xr
 
-from ..interp.wrapper import ArrayGridDesc
+from interp.wrapper import ArrayGridDesc
 
 
 class StackTools(NamedTuple):
-    """Helper information to reorder and reshape arrays for interpolation."""
+    """Helper information to reorder and reshape arrays for interpolation.
+
+    Parameters
+    ----------
+    src_dim_order : List[str]
+        The stacking order of named dimensions in the source array.
+    dst_dim_order : List[str]
+        The stacking order of named dimensions in the destination array.
+    out_dim_order : List[str]
+        The stackingorder of named dimensions in the output array.
+    src_stackshape : Tuple[int, ...]
+        The shape of the stacked source array.
+    dst_stackshape : Tuple[int, ...]
+        The shape of the stacked destination array.
+    out_coords : Dict[str, Any]
+        The coordinates of the output array.
+    out_shape : Tuple[int, ...]
+        The non-stacked shape of the output array.
+    """
     src_dim_order: List[str]
     dst_dim_order: List[str]
     out_dim_order: List[str]
@@ -24,13 +42,28 @@ def tools_to_stack_2dgrids(src_arr : xr.DataArray,
                            srcgrid : ArrayGridDesc,
                            tgtgrid : ArrayGridDesc,
                            lat_row : bool = True
-                           ):
+                           ) -> StackTools:
     """
+    Stack 2D grids for providing flattened NumPy fields to the interpolation interface.
+
+    Parameters
+    ----------
+    src_arr : xr.DataArray
+        The source data array to be stacked.
+    srcgrid : ArrayGridDesc
+        The description of the source grid.
+    tgtgrid : ArrayGridDesc
+        The description of the target grid.
     lat_row : bool (default True)
         whether latitude is major dimension for flattening (lat, lon) grid
         otherwise longitude major (lon, lat)
+
+    Returns
+    -------
+    StackTools
+        The named tuple containing the stacking information for the source and target grids.
     """
-    from ..interp.grids import GridType 
+    from ..interp.grids import GridType
     import xarray as xr
 
     def get_ordered_intp_dims(grid : ArrayGridDesc, lat_row : bool,
@@ -59,7 +92,7 @@ def tools_to_stack_2dgrids(src_arr : xr.DataArray,
         return get_ordered_intp_dims(grid, lat_row, coord_dims=False)
     def get_ordered_coorddims(grid : ArrayGridDesc, lat_row : bool) -> List[str]:
         return get_ordered_intp_dims(grid, lat_row, coord_dims=True)
-    
+
     # Interpolation dimension of data fields
     intp_dims_src = get_ordered_datadims(srcgrid, lat_row)
     # The rest comes after
@@ -69,7 +102,7 @@ def tools_to_stack_2dgrids(src_arr : xr.DataArray,
     intp_ndims_src = [len(src_arr[src_dim]) for src_dim in intp_dims_src]
 
     src_dim_order = nonintp_dims_src+intp_dims_src
-    
+
     src_stackshape = [int(max(np.prod(nonintp_ndims_src),1))]+\
     [int(np.prod(intp_ndims_src))]
 
@@ -92,7 +125,7 @@ def tools_to_stack_2dgrids(src_arr : xr.DataArray,
             "lon" : xr.DataArray(data=tgtgrid.lon, dims=coordims_tgt[1], attrs=lonattrs),
         }
         intp_ndims_tgt = [len(getattr(tgtgrid, dim)) for dim in intp_dims_tgt]
-        
+
     else:
         assert len(coordims_tgt) == 1
         assert len(intp_dims_tgt) == 1
@@ -104,7 +137,7 @@ def tools_to_stack_2dgrids(src_arr : xr.DataArray,
             "lat" : xr.DataArray(data=tgtgrid.lat, dims=coordims_tgt, attrs=latattrs),
             "reduced_points" : xr.DataArray(data=tgtgrid.reduced_pts, dims=coordims_tgt),
         }
-        # Unstructured 
+        # Unstructured
         elif (tgtgrid.gtyp == GridType.UNSTRUC):
             intp_coords_tgt = {
             "lat" : xr.DataArray(data=tgtgrid.lat, dims=coordims_tgt, attrs=latattrs),
@@ -119,7 +152,7 @@ def tools_to_stack_2dgrids(src_arr : xr.DataArray,
         **{dim: src_arr.coords[dim] for dim in nonintp_dims_src},
         **intp_coords_tgt
     }
-    
+
     return StackTools(
         src_dim_order = src_dim_order,
         dst_dim_order = [],
@@ -136,7 +169,7 @@ def tools_to_stack_xarrays(
     intp_dim_name: Optional[str] = None,
 ) -> StackTools:
     """
-    Compute all tools to reorder/reshape arrays with NumPy for efficient interpolation.
+    Compute all tools to reorder/reshape arrays to pass NumPy fields to interpolation interfaces.
 
     Parameters
     ----------
@@ -211,7 +244,27 @@ def tools_to_stack_xarrays(
 
 
 class StackAeroTuple(NamedTuple):
-    """Flattened aerosol dataset and related metadata."""
+    """Flattened aerosol dataset and related metadata.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Flattened aerosol data array.
+    w_data : Optional[np.ndarray]
+        Flattened w-variable data array, if any.
+    varlist : list[str]
+        List of main variable names.
+    w_varlist : list[str]
+        List of w-variable names.
+    dimorder : tuple[str, ...]
+        Original dimension order of the data.
+    fldshape : tuple[int, ...]
+        Original shape of the data fields.
+    coords : dict[str, Any]
+        Coordinate arrays for each dimension.
+    c_order : bool
+        Whether the data is stored in C-contiguous order.
+    """
     data: np.ndarray
     w_data: Optional[np.ndarray]
     varlist: List[str]
@@ -306,7 +359,21 @@ def get_stacked_aero(
 
 
 class StackLutTuple(NamedTuple):
-    """Flattened LUT maps and bins with metadata."""
+    """Flattened LUT maps and bins with metadata.
+
+    Parameters
+    ----------
+    lut_maps : np.ndarray
+        Flattened LUT maps.
+    maplist : List[str]
+        Names of the maps.
+    maptypes : List[str]
+        Types of the maps.
+    lut_bins : xr.Dataset
+        Bin coordinates associated with the LUT maps.
+    c_order : bool
+        True if arrays are flattened in C order, False for F order.
+    """
     lut_maps: np.ndarray
     maplist: List[str]
     maptypes: List[str]
