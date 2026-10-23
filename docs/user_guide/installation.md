@@ -93,7 +93,7 @@ CONFIGDICT_DEF = {
 
 To download a recent publicly available greenhouse gas climatology provided by ECMWF, you can use:
 ```bash
-$ wget -q "https://confluence.ecmwf.int/download/attachments/70945505/greenhouse_gas_timeseries_CMIP6_SSP370_CFC11equiv_47r1.nc?version=1&modificationDate=1606823141142&api=v2&download=true" -O data/ghg/greenhouse_gas_timeseries_CMIP6_SSP370_CFC11equiv_47r1.nc
+$ wget "https://confluence.ecmwf.int/download/attachments/70945505/greenhouse_gas_timeseries_CMIP6_SSP370_CFC11equiv_47r1.nc?version=1&modificationDate=1606823141142&api=v2&download=true" -O data/ghg/greenhouse_gas_timeseries_CMIP6_SSP370_CFC11equiv_47r1.nc
 ```
 
 ### Aerosol climatology
@@ -107,4 +107,18 @@ CONFIGDICT_DEF = {
     ...
 }
 ```
-Since IFS cycle CY47R3, the aerosol climatology consists of profiles of aerosol species represented by the IFS-COMPO system used by ECMWF within the Copernicus Atmosphere Monitoring Service (CAMS). The version of the climatology introduced by Bozzo et al. (2020) is publicly available and can be downloaded following the instructions in the [ecRad overview page](https://confluence.ecmwf.int/spaces/ECRAD/overview).
+Since IFS cycle CY47R3, the aerosol climatology consists of profiles of aerosol species represented by the IFS-COMPO system used by ECMWF within the Copernicus Atmosphere Monitoring Service (CAMS). For more details, check out the confluence web page on [Aerosol-radiation interactions in the IFS](https://confluence.ecmwf.int/spaces/ECRAD/pages/473845531/Aerosol-radiation+interactions+in+the+IFS).
+
+The monthly climatology introduced by Bozzo et al. (2020) [^1] can be downloaded from:
+```bash
+$ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_43r3_v2_3D.nc" -O data/cams_clim
+```
+
+From the IFS CY49R2 uses a monthly climatology with an additional `epoch` dimension, produced by Stockdale et al. (2023) [^2] that can be downloaded from:
+```bash
+$ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_49r2_1951-2019_4D.nc" -O data/cams_clim
+```
+
+[^1] : Bozzo, A., Benedetti, A., Flemming, J., Kipling, Z., and Rémy, S.: An aerosol climatology for global models based on the tropospheric aerosol scheme in the Integrated Forecasting System of ECMWF, Geosci. Model Dev., 13, 1007–1034, [https://doi.org/10.5194/gmd-13-1007-2020], 2020.
+
+[^2] : Stockdale, T., Senan, R., Hogan, R., Kipling, Z., and Flemming, J.: A new time-varying tropospheric aerosol climatology for the IFS, ECMWF Tech. Rep., [https://www.ecmwf.int/en/elibrary/81558-new-time-varying-tropospheric-aerosol-climatology-ifs], 2024
