@@ -8,6 +8,8 @@ ECRAD_SP: precision for ecrad. default is double. With ecrad flotsam sp build fa
 """
 
 
+import cmd
+
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 import subprocess
@@ -82,9 +84,9 @@ def clean_all_src_dirs():
             if os.path.exists(src_dir):
                 res_clean = subprocess.run(['make', '-C', src_dir, cleanop], capture_output=True, text=True)
                 if res_clean.returncode != 0 and cleanop == 'clean': # Not all have distclean
-                    print(f"Warning: make {cleanop} failed in {src_dir} with error:\n{res_clean.stderr}")
+                    print(f"Warning: make {cleanop} failed in {src_dir} with error:\n{res_clean.stderr}", flush=True)
         else:
-            print(f"Cleaned {src_dir}.")
+            print(f"Cleaned {src_dir}.", flush=True)
 
 class CleanBuildExt(build_ext):
     def run(self):
@@ -103,27 +105,24 @@ class BuildExt(build_ext):
         with open(err_file, "w") as f:
             f.write(stderr)
 
-        print(f"stdout and stderr put into {out_file} and {err_file}.")
+        print(f"stdout and stderr put into {out_file} and {err_file}.", flush=True)
 
     def _easy_logged_run(self, cmd : Union[str, List[str]], log_dir : str,
                          label : str, message : str, shell : bool = False,
                          cwd : Optional[str] = None):
         """Just wrap cmd run and logging"""
-        if type(cmd) == str:
-            cmd_str = cmd
-            if not shell:
+        if type(cmd) == str and not shell:
                 raise ValueError("If cmd is a string, shell must be True.")
-        else:
-            cmd_str = ' '.join(cmd)
+
         import subprocess
-        print(f"Running {message}:\n\t{cmd_str}\n")
+        print(f"Running {message}:\n\t{cmd}\n", flush=True)
         result = subprocess.run(cmd, shell=shell, capture_output=True, text=True, cwd=cwd)
         self._write_cmd_logs(log_dir, result.stdout, result.stderr, label=label)
         if result.returncode != 0:
-            print(result.stderr)
+            print(result.stderr, flush=True)
             raise RuntimeError(f"{message} failed with return code {result.returncode}")
         else:
-            print(prGreen(f"[SUCCESS] {message} completed."))
+            print(prGreen(f"[SUCCESS] {message} completed."), flush=True)
 
     def run(self):
 
@@ -171,13 +170,16 @@ class BuildExt(build_ext):
             # -------------------
 
             # NetCDF4 with Fortran support required
-            cmd_nc4 = ['nc-config', '--has-nc4']
-            result_nc4 = subprocess.run(cmd_nc4, capture_output=True, text=True)
-            if result_nc4.returncode != 0 or "yes" not in result_nc4.stdout.lower():
+            #cmd_nc4 = ['nc-config', '--has-nc4']
+            #result_nc4 = subprocess.run(cmd_nc4, capture_output=True, text=True)
+            nc_prefix = subprocess.check_output(['nc-config', '--prefix'], text=True).strip()
+            nf_prefix = subprocess.check_output(['nf-config', '--prefix'], text=True).strip()
+            if not nc_prefix or not nf_prefix:
                 raise RuntimeError("netCDF4 Fortran support is required to build ecrad. Please install netCDF4 with Fortran support and ensure nc-config is in your PATH.")
+            ldflags = " ".join(f"-L{x}" for x in [os.path.join(p, 'lib') for p in [nc_prefix, nf_prefix]])
 
             if USE_FLOTSAM:
-                print("This is a FLOTSAM installation")
+                print("This is a FLOTSAM installation", flush=True)
                 # Did we find a BLAS/LAPACK library?
                 if blas_lib is None:
                     raise ValueError("BLAS_LIB or OPENBLAS_LIB environment required to build Adept2")
@@ -245,14 +247,14 @@ class BuildExt(build_ext):
             cppflags = "-DADEPT_STORAGE_THREAD_SAFE"
 
         if minimal_checks:
-            print("Building flotsam with minimal checks")
+            print("Building flotsam with minimal checks", flush=True)
             cppflags += " -DADEPT_NO_ALIAS_CHECKING -DADEPT_NO_DIMENSION_CHECKING"
         else:
-            print("Building flotsam with full checks")
+            print("Building flotsam with full checks", flush=True)
             cppflags += " -DADEPT_BOUNDS_CHECKING"
 
         if nan_init:
-            print("Building flotsam with NaN initialization")
+            print("Building flotsam with NaN initialization", flush=True)
             cppflags += " -DADEPT_INIT_REAL_SNAN"
 
         return cppflags
@@ -279,48 +281,53 @@ class BuildExt(build_ext):
 
 
             # Configure
-            cmd_cf = f"cd {os.path.join(adept2_path)} && ./configure"
+            # cd {os.path.join(adept2_path)} we use cwd
+            cmd_cf = ["./configure"]
             if debug:
                 cxxflags = "-g -O0"
             else:
                 cxxflags = "-O0"
             cxxflags = cxxflags + " -Wall -march=native"
 
-            cmd_cf = cmd_cf + f" CXXFLAGS='{cxxflags}'"
+            cmd_cf.append(f"CXXFLAGS={cxxflags}")
 
             if adept_cpp_flags != "":
-                cmd_cf = cmd_cf + f" CPPFLAGS='{adept_cpp_flags}'"
+                cmd_cf.append(f"CPPFLAGS={adept_cpp_flags}")
             if prefix != "":
-                cmd_cf = cmd_cf + f" --prefix={prefix}"
+                cmd_cf.append(f"--prefix={os.path.abspath(prefix)}")
             if blas_lapack_lib is not None:
-                cmd_cf =  cmd_cf + f" --with-blas='{blas_lapack_lib}'"
+                cmd_cf.append(f"--with-blas={blas_lapack_lib}")
 
-            cmd_cf = cmd_cf + " && cd -"
-
-            self._easy_logged_run(cmd_cf, log_dir=LOGS_DIR, shell=True,
-                                  label="adept2_configure", message="Adept2 configure")
+            self._easy_logged_run(cmd_cf, log_dir=LOGS_DIR, shell=False,
+                                  label="adept2_configure", message="Adept2 configure",
+                                  cwd=adept2_path)
         else:
-            print("[Info] Adept2 Makefile already exists, skipping autoreconf and configure.")
+            print("[Info] Adept2 Makefile already exists, skipping autoreconf and configure.", flush=True)
 
         # Build
-        cmd_bld = ['make', '-C', adept2_path]
+        cmd_bld = ['make']
         if num_threads > 0:
             cmd_bld.append(f"-j{num_threads}")
         else:
             cmd_bld.append("-j")
         self._easy_logged_run(cmd_bld, log_dir=LOGS_DIR,
-                              label="adept2_build", message="Adept2 build")
+                              label="adept2_build",
+                              message="Adept2 build",
+                              cwd=adept2_path)
 
         # Check
         if not skip_checks:
-            cmd_chk = ['make', '-C', adept2_path, 'check']
+            cmd_chk = ['make', 'check']
             self._easy_logged_run(cmd_chk, log_dir=LOGS_DIR,
-                                  label="adept2_check", message="Adept2 check")
+                                  label="adept2_check",
+                                  message="Adept2 check",
+                                  cwd=adept2_path)
 
         # Install
-        cmd_install = ['make', '-C', adept2_path, 'install']
+        cmd_install = ['make', 'install']
         self._easy_logged_run(cmd_install, log_dir=LOGS_DIR,
-                              label="adept2_install", message="Adept2 install", cwd=adept2_path)
+                              label="adept2_install", message="Adept2 install",
+                              cwd=adept2_path)
 
 
     def _build_flotsam(self, flotsam_path, adept2_dir : str,
@@ -362,28 +369,34 @@ class BuildExt(build_ext):
             # Start writing the flags
             if debug:
                 # debug flag no optimisation
-                cxxflags = "-Wall -g -O0"
+                cxxflags = "-g -O0"
             else:
                 # no debug, but no optimisation either
-                cxxflags = "-Wall -O0"
-            cxxflags = cxxflags+" -march=native"
+                cxxflags = "-O0"
+            cxxflags += " -Wall -march=native"
             cppflags = f"-I{adept2_include}"
             if adept_cpp_flags != "":
                 cppflags = cppflags + " " + adept_cpp_flags
 
             # LD flags
             ldflags = f"-L{adept2_lib} -Wl,-rpath,{adept2_lib}"
-            cmd_cf = f"cd {os.path.join(flotsam_path)} && " +\
-                    "./configure " +\
-                    f"CC='{cc}' CXX='{cxx}' CXXFLAGS='{cxxflags}' CPPFLAGS='{cppflags}' LDFLAGS='{ldflags}'"
+            cmd_cf = ["./configure"]
+            cmd_cf += [
+                f"CC={cc}",
+                f"CXX={cxx}",
+                f"CXXFLAGS={cxxflags}",
+                f"CPPFLAGS={cppflags}",
+                f"LDFLAGS={ldflags}"
+                ]
             # where to install Flotsam
             if prefix != "":
-                cmd_cf = cmd_cf +f" --prefix={prefix}"
-            cmd_cf = cmd_cf + " && cd -"
-            self._easy_logged_run(cmd_cf, log_dir=LOGS_DIR, shell=True,
-                                  label="flotsam_configure", message="Flotsam configure")
+                cmd_cf.append(f"--prefix={os.path.abspath(prefix)}")
+
+            self._easy_logged_run(cmd_cf, log_dir=LOGS_DIR, shell=False,
+                                  label="flotsam_configure",
+                                  message="Flotsam configure", cwd=flotsam_path)
         else:
-            print("[Info] Flotsam Makefile already exists, skipping autoreconf and configure.")
+            print("[Info] Flotsam Makefile already exists, skipping autoreconf and configure.", flush=True)
 
         cmd_bld = ['make', '-C', flotsam_path]
         if num_threads > 0:
@@ -402,8 +415,14 @@ class BuildExt(build_ext):
                      flotsam_dir : Optional[str] = None):
         """Build ecrad using specified compiler configuration"""
 
+        nc_prefix = subprocess.check_output(['nc-config', '--prefix'], text=True).strip()
+        nf_prefix = subprocess.check_output(['nf-config', '--prefix'], text=True).strip()
+        if not nc_prefix or not nf_prefix:
+            raise RuntimeError("netCDF4 Fortran support is required to build ecrad. Please install netCDF4 with Fortran support and ensure nc-config is in your PATH.")
+        ldflags = f"-L{nc_prefix}/lib"
 
         cmd = ['make', '-C', ecrad_path]
+        cmd.append(f"LDFLAGS={ldflags}")
 
         # ecrad does not check the value, but just if set
         if sp_switch:
@@ -419,11 +438,11 @@ class BuildExt(build_ext):
                 cmd.append(f"PROFILE={profile}")
             else:
                 available = [f.split("Makefile_include.")[1] for f in os.listdir(ecrad_path) if f.startswith("Makefile_include.")]
-                print(f"Warning: Makefile_include.{profile} not found")
-                print(f"Available profiles: {', '.join(available)}")
+                print(f"Warning: Makefile_include.{profile} not found", flush=True)
+                print(f"Available profiles: {', '.join(available)}", flush=True)
                 sys.exit(1)
 
-        print(f"Building ecrad:\n\t{' '.join(cmd)}\n")
+        print(f"Building ecrad:\n\t{' '.join(cmd)}\n", flush=True)
 
         self._easy_logged_run(cmd, log_dir=LOGS_DIR,
                               label="ecrad_build", message="ecRad build")
