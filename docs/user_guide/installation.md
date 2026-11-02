@@ -119,6 +119,13 @@ From the IFS CY49R2 uses a monthly climatology with an additional `epoch` dimens
 $ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_49r2_1951-2019_4D.nc" -O data/cams_clim
 ```
 
+#### Aerosol optics
+They are currently provided within the `ecRad` package file `ecrad/data/aerosol_ifs_49R1.nc`. An updated file is available at the following URL:
+```bash
+$ wget "https://confluence.ecmwf.int/download/attachments/473845531/aerosol_ifs_49R2.nc?version=1&modificationDate=1733168549703&api=v2" -O data/optics_lut
+```
+and can be set in the ecRad configuration namelist (see `docs/examples`)
+
 [^1] : Bozzo, A., Benedetti, A., Flemming, J., Kipling, Z., and Rémy, S.: An aerosol climatology for global models based on the tropospheric aerosol scheme in the Integrated Forecasting System of ECMWF, Geosci. Model Dev., 13, 1007–1034, [https://doi.org/10.5194/gmd-13-1007-2020], 2020.
 
 [^2] : Stockdale, T., Senan, R., Hogan, R., Kipling, Z., and Flemming, J.: A new time-varying tropospheric aerosol climatology for the IFS, ECMWF Tech. Rep., [https://www.ecmwf.int/en/elibrary/81558-new-time-varying-tropospheric-aerosol-climatology-ifs], 2024
