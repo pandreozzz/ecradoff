@@ -269,8 +269,8 @@ class BuildExt(build_ext):
 
 
         if not os.path.exists(os.path.join(adept2_path, "Makefile")):
-            # First autoreconf
-            cmd_ar = ["autoreconf",'-i', '-f']
+            # First autoreconf - always overwrite
+            cmd_ar = ["autoreconf",'-fi']
             self._easy_logged_run(
                 cmd_ar,
                 log_dir=LOGS_DIR,
@@ -352,8 +352,8 @@ class BuildExt(build_ext):
             raise ValueError(f"Adept2 include not found in {adept2_dir}.")
 
         if not os.path.exists(os.path.join(flotsam_path, "Makefile")):
-            # Autoreconf
-            cmd_ar = ['autoreconf', '-i', '-f']
+            # Autoreconf always overwrite
+            cmd_ar = ['autoreconf', '-fi']
             self._easy_logged_run(cmd_ar, log_dir=LOGS_DIR,
                                   label="flotsam_autoreconf",
                                   message="Flotsam autoreconf",

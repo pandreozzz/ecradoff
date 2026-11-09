@@ -50,16 +50,29 @@ locals/lib/%.so: src/libs/%.f90
 $(ECRADBIN):
 	ln -s ../../ecrad/bin/ecrad $@
 
-clean: clean-flotsam clean-adept
-	rm -f *.o $(OBJECTS)
-	rm -f locals/bin/*
+.PHONY: clean clean-flotsam clean-adept clean-ecrad
 
 clean-flotsam:
-	rm -f locals/lib/libflotsam*
-	rm -rf locals/include/flotsam*
-	rm -rf locals/share/flotsam*
+	@if [ -f flotsam/Makefile ]; then \
+		$(MAKE) -C flotsam clean; \
+	fi
+		rm -f locals/lib/libflotsam*
+		rm -rf locals/include/flotsam*
+		rm -rf locals/share/flotsam*
 
 clean-adept:
+	@if [ -f Adept-2/Makefile ]; then \
+		$(MAKE) -C Adept-2 clean; \
+	fi
 	rm -f locals/lib/libadept*
 	rm -rf locals/include/adept*
 	rm -rf locals/share/adept*
+
+clean-ecrad:
+	$(MAKE) -C ecrad clean
+
+clean: clean-flotsam clean-adept clean-ecrad
+	rm -f *.o $(OBJECTS)
+	rm -f locals/bin/*
+
+
