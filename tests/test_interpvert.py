@@ -8,7 +8,7 @@ import traceback
 import numpy as np
 import xarray as xr
 
-from src.interp.wrapper import GriddedProfile
+from src.ecradoff.interp.wrapper import GriddedProfile
 
 verbose = False
 aero_clim_fpath = Path(os.path.join("data/cams_clim", "aerosol_cams_climatology_4D_test.nc"))

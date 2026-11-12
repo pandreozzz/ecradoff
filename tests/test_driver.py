@@ -1,6 +1,6 @@
 import os
-import src.main.fetch as fetch
-from src.main.config import digest_config
+import src.ecradoff.main.fetch as fetch
+from src.ecradoff.main.config import digest_config
 digest_config()
 model_files = "./data/era5/era5_ecrad_1956-10-28_N48_*_zarr"
 

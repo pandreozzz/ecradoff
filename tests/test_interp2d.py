@@ -10,7 +10,7 @@ import traceback
 import xarray as xr
 import numpy as np
 
-from src.interp.wrapper import GriddedArray
+from src.ecradoff.interp.wrapper import GriddedArray
 
 verbose=False
 aero_clim_fpath = Path(os.path.join("data/cams_clim", "aerosol_cams_climatology_4D_test.nc"))
@@ -89,7 +89,7 @@ start = time()
 try:
     ga_interp2 = ga_dclim.interp2d_to(tgt_grid2, verbose=verbose)
     print(ga_interp2.array.__str__(), flush=True)
-except Exception as e:  
+except Exception as e:
     print(f"Reduced grid interpolation failed with error: {e}")
     traceback.print_exc()
     ga_interp2 = None
@@ -145,7 +145,7 @@ if ga_interp2 is not None:
 #     except Exception as e:
 #         print(f"Unstructured to regular grid interpolation failed with error: {e}")
 #         traceback.print_exc()
-    
+
 #     print("Testing unstructured to reduced grid interpolation")
 #     try:
 #         ga_interp7 = ga_interp3.interp2d_to(tgt_grid2, verbose=verbose)
@@ -153,7 +153,7 @@ if ga_interp2 is not None:
 #     except Exception as e:
 #         print(f"Unstructured to reduced grid interpolation failed with error: {e}")
 #         traceback.print_exc()
-    
+
 #     print("Testing unstructured to unstructured grid interpolation")
 #     try:
 #         ga_interp8 = ga_interp3.interp2d_to(tgt_grid5, verbose=verbose)
