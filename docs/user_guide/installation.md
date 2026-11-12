@@ -44,15 +44,16 @@ At this point, proceed with the installation. This will handle all Python depend
 
 ### Installation
 
-To install ecRadOff and its Python dependencies:
-```bash
-$ pip install -v -e .
-```
-This will call the `setup.py` script, compile and install all submodule dependencies as well as the native ecRadOff libraries. Once the Python dependencies are installed, the `setup.py` can also be invoked directly to recompile and reinstall all required libraries. A possible use case is the usage of debugging flags or switching float precision settings, for example:
+Netcdf4 is a required dependency for ecRad. The ecRadOff installation will check for it and fail if this is not found.
 
+To install ecRadOff and its Python dependencies, if openblas is used:
 ```bash
-$ python setup.py clean
-$ ECRAD_SP=1 python setup.py build_ext
+$ BLAS_LIB=openblas pip install -v -e .
+```
+This will call the `setup.py` script, compile and install all submodule dependencies as well as the native ecRadOff libraries. Once the Python dependencies are installed, the `setup.py` can also be invoked directly to recompile and reinstall all required libraries, but requires `setuptools` to be installed explicitly. Cleaning will ensure everything is rebuilt so, for example, to switch to single precision:
+```bash
+$ make clean
+$ ECRAD_SP=1 BLAS_LIB=openblas pip install -v -e .
 ```
 
 For a list of available build options:
@@ -111,18 +112,18 @@ Since IFS cycle CY47R3, the aerosol climatology consists of profiles of aerosol 
 
 The monthly climatology introduced by Bozzo et al. (2020) [^1] can be downloaded from:
 ```bash
-$ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_43r3_v2_3D.nc" -O data/cams_clim
+$ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_43r3_v2_3D.nc" -P data/cams_clim
 ```
 
 From the IFS CY49R2 uses a monthly climatology with an additional `epoch` dimension, produced by Stockdale et al. (2023) [^2] that can be downloaded from:
 ```bash
-$ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_49r2_1951-2019_4D.nc" -O data/cams_clim
+$ wget "https://aux.ecmwf.int/ecpds/home/radiation_public/aerosol_climatology/aerosol_cams_climatology_49r2_1951-2019_4D.nc" -P data/cams_clim
 ```
 
 #### Aerosol optics
 They are currently provided within the `ecRad` package file `ecrad/data/aerosol_ifs_49R1.nc`. An updated file is available at the following URL:
 ```bash
-$ wget "https://confluence.ecmwf.int/download/attachments/473845531/aerosol_ifs_49R2.nc?version=1&modificationDate=1733168549703&api=v2" -O data/optics_lut
+$ wget "https://confluence.ecmwf.int/download/attachments/473845531/aerosol_ifs_49R2.nc?version=1&modificationDate=1733168549703&api=v2" -P data/optics_lut
 ```
 and can be set in the ecRad configuration namelist (see `docs/examples`)
 

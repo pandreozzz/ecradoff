@@ -42,15 +42,12 @@ $ source .venv/bin/activate
 There is a python `setup.py` script to build all sources (ecRad and its dependencies, the native ecRadOff Fortran libraries).
 Ideally, everything should be handled automagically with:
 ```
-$ pip install -e .
+$ BLAS_LIB=openblas pip install -e .
 ```
-however, it is more probable than not that this will not work. `setup.py` can be invoked directly and eventually fine-tuned to specific needs and environments. To print available environment options:
+
+To print available environment options:
 ```
-$ python setup.py help
-```
-Then, to attempt a build with default options:
-```
-$ python setup.py build
+$ python help.py
 ```
 
 ###  Most-used environment variables
